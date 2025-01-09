@@ -10,9 +10,9 @@ pi_identifier: 'rpi_name'
 camera:
   # Basic settings
   brightness: 0.0  # Range: -1.0 to 1.0
-  contrast: 16.0   # Range: 0.0 to 32.0
+  contrast: 1.5   # Range: 0.0 to 32.0
   saturation: 0.0  # Range: 0.0 to 32.0, set to 0 for grayscale
-  sharpness: 8.0   # Range: 0.0 to 16.0
+  sharpness: 4.0   # Range: 0.0 to 16.0
   
   # Resolution
   resolution:
@@ -25,12 +25,12 @@ camera:
   
   # Lens settings
   lens:
-    position: 16.0  # Range: 0.0 to 32.0
+    position: 4.0  # Range: 0.0 to 32.0
   
   # Additional controls
   analog_gain: 1.0      # Range: 1.0 to 16.0
   exposure_value: 0.0   # Range: -8.0 to 8.0
-  noise_reduction: 2    # Range: 0 to 4 (2 = medium quality)
+  noise_reduction: 3    # Range: 0 to 4 (2 = medium quality)
   
   # Encoding
   bitrate: 1000000
