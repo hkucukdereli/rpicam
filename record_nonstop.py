@@ -264,7 +264,7 @@ def main():
         encoder.bitrate = config['camera']['bitrate']
         
         # Start recording with specific configuration
-        camera.start_recording(encoder, quality=Quality.VERY_HIGH)
+        camera.start_recording(encoder=encoder, output=output)
         recorder = ContinuousRecording(camera, encoder, subject_path)
         recorder.start()
 
