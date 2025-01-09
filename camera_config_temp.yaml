@@ -1,9 +1,9 @@
 # config.yaml
 # Subject name
-subject_name: 'A3726'
+subject_name: 'subject_name'
 
 # Camera identification
-pi_identifier: 'eunice'
+pi_identifier: 'rpi_name'
 
 # Camera settings
 camera:
@@ -29,4 +29,4 @@ paths:
 
 # Cloud storage settings
 cloud:
-  rclone_config: 'lowelllab:eunice'
+  rclone_config: 'lowelllab:rpi_name'
