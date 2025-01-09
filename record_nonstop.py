@@ -25,21 +25,47 @@ def ensure_directory_exists(path):
         os.makedirs(path)
         logging.info(f"Created directory: {path}")
 
-class VideoOutput(FileOutput):
-    def __init__(self, filepath):
-        super().__init__(filepath)
-        self.filepath = filepath
-        self.file = open(filepath, 'wb')
-        
-        # Create timestamp file
-        timestamp_path = filepath.replace('.h264', '_timestamps.csv')
-        self.timestamp_file = open(timestamp_path, 'w', newline='')
-        self.timestamp_writer = csv.writer(self.timestamp_file)
-        self.timestamp_writer.writerow(['frame_number', 'time_since_start', 'system_time'])
-        
-        self.frame_count = 0
-        self.start_time = time()
-        self.buffer_size = 0
+class SessionMetadata:
+    def __init__(self, subject_path, start_time):
+        self.filepath = os.path.join(
+            subject_path,
+            f"{config['subject_name']}_{start_time.strftime('%Y%m%d')}_{config['pi_identifier']}_metadata.yaml"
+        )
+        self.metadata = {
+            'recording': {
+                'subject_name': config['subject_name'],
+                'pi_identifier': config['pi_identifier'],
+                'start_time': start_time.isoformat(),
+                'end_time': None,
+                'total_frames': 0,
+                'video_files': []
+            },
+            'camera': {
+                'resolution': {
+                    'width': config['camera']['resolution']['width'],
+                    'height': config['camera']['resolution']['height']
+                },
+                'frame_format': config['camera']['frame_format'],
+                'frame_duration_limits': config['camera']['frame_duration_limits']
+            }
+        }
+        self.save()
+    
+    def update_chunk(self, mp4_file, frame_count):
+        """Update metadata with new chunk information"""
+        self.metadata['recording']['video_files'].append(mp4_file)
+        self.metadata['recording']['total_frames'] += frame_count
+        self.save()
+    
+    def finalize(self, end_time):
+        """Update end time when recording is finished"""
+        self.metadata['recording']['end_time'] = end_time.isoformat()
+        self.save()
+    
+    def save(self):
+        """Save metadata to YAML file"""
+        with open(self.filepath, 'w') as f:
+            yaml.dump(self.metadata, f, default_flow_style=False)
 
     def outputframe(self, frame, keyframe=True, timestamp=None, packet=None, audio=None):
         try:
@@ -118,13 +144,14 @@ class VideoOutput(FileOutput):
             logging.error(f"Error during conversion: {e}")
 
 class ContinuousRecording:
-    def __init__(self, camera, encoder, video_path):
+    def __init__(self, camera, encoder, video_path, start_time):
         self.camera = camera
         self.encoder = encoder
         self.video_path = video_path
         self.chunk_length = config['recording']['chunk_length']
         self.recording = True
         self.chunk_counter = 1
+        self.metadata = SessionMetadata(video_path, start_time)
         
     def _generate_filename(self):
         date = datetime.now().strftime('%Y%m%d')
@@ -147,11 +174,19 @@ class ContinuousRecording:
             new_file = self._generate_filename()
             new_output = VideoOutput(new_file)
             
+            # Get frame count from current output before switching
             old_output = self.encoder.output
+            old_frame_count = old_output.frame_count if old_output else 0
+            
+            # Switch to new output
             self.encoder.output = new_output
             
+            # Close old output and update metadata
             if old_output:
                 old_output.close()
+                mp4_file = old_output.filepath.replace('.h264', '.mp4')
+                if os.path.exists(mp4_file):
+                    self.metadata.update_chunk(mp4_file, old_frame_count)
             
             self.chunk_counter += 1
             logging.info(f"Started new chunk: {new_file}")
@@ -160,6 +195,14 @@ class ContinuousRecording:
 
     def stop(self):
         self.recording = False
+        # Update metadata with final chunk and end time
+        if self.encoder and self.encoder.output:
+            final_output = self.encoder.output
+            final_output.close()
+            mp4_file = final_output.filepath.replace('.h264', '.mp4')
+            if os.path.exists(mp4_file):
+                self.metadata.update_chunk(mp4_file, final_output.frame_count)
+        self.metadata.finalize(datetime.now())
 
 def handle_shutdown(camera, recorder):
     print("\nInitiating safe shutdown...")
