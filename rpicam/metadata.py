@@ -1,6 +1,7 @@
 import os
 import yaml
-from datetime import datetime
+import logging
+
 
 class SessionMetadata:
     def __init__(self, subject_path, start_time, config):
