@@ -31,7 +31,8 @@ class VideoOutput(FileOutput):
         self.filepath = filepath
         self.file = open(filepath, 'wb')
         
-        timestamp_path = filepath.replace('.mp4', '_timestamps.csv')
+        # Create timestamp file
+        timestamp_path = filepath.replace('.h264', '_timestamps.csv')
         self.timestamp_file = open(timestamp_path, 'w', newline='')
         self.timestamp_writer = csv.writer(self.timestamp_file)
         self.timestamp_writer.writerow(['frame_number', 'time_since_start', 'system_time'])
@@ -42,13 +43,16 @@ class VideoOutput(FileOutput):
 
     def outputframe(self, frame, keyframe=True, timestamp=None, packet=None, audio=None):
         try:
+            # Write video frame
             self.file.write(frame)
             self.buffer_size += len(frame)
             
-            if self.buffer_size >= 1024 * 1024:
+            # Force flush more frequently
+            if self.buffer_size >= 512 * 1024:  # Flush every 512KB
                 self.file.flush()
                 self.buffer_size = 0
             
+            # Write timestamp
             self.timestamp_writer.writerow([
                 self.frame_count,
                 f"{time() - self.start_time:.6f}",
@@ -56,7 +60,8 @@ class VideoOutput(FileOutput):
             ])
             self.frame_count += 1
             
-            if self.frame_count % 30 == 0:
+            # Flush timestamp file more frequently
+            if self.frame_count % 10 == 0:  # Every 10 frames
                 self.timestamp_file.flush()
                 
         except Exception as e:
@@ -70,8 +75,47 @@ class VideoOutput(FileOutput):
             if hasattr(self, 'timestamp_file'):
                 self.timestamp_file.flush()
                 self.timestamp_file.close()
+                
+            # Convert h264 to mp4 after closing
+            self._convert_to_mp4()
         except Exception as e:
             logging.error(f"Error closing output: {e}")
+            
+    def _convert_to_mp4(self):
+        try:
+            h264_file = self.filepath
+            mp4_file = h264_file.replace('.h264', '.mp4')
+            
+            # Calculate framerate from frame_duration_limits
+            frame_duration = config['camera']['frame_duration_limits'][0]  # in microseconds
+            framerate = int(1000000 / frame_duration)  # convert to fps
+            
+            # FFmpeg command with explicit framerate
+            convert_command = [
+                'ffmpeg', '-y',
+                '-f', 'h264',
+                '-r', str(framerate),
+                '-i', h264_file,
+                '-c:v', 'copy',
+                '-movflags', '+faststart',
+                mp4_file
+            ]
+            
+            result = subprocess.run(convert_command, 
+                                 capture_output=True,
+                                 text=True)
+            
+            if result.returncode == 0:
+                if os.path.exists(mp4_file) and os.path.getsize(mp4_file) > 0:
+                    logging.info(f"Successfully converted to {mp4_file}")
+                    os.remove(h264_file)  # Remove h264 file after successful conversion
+                else:
+                    logging.error("Conversion produced empty MP4 file")
+            else:
+                logging.error(f"FFmpeg conversion failed: {result.stderr}")
+                    
+        except Exception as e:
+            logging.error(f"Error during conversion: {e}")
 
 class ContinuousRecording:
     def __init__(self, camera, encoder, video_path):
@@ -86,7 +130,7 @@ class ContinuousRecording:
         date = datetime.now().strftime('%Y%m%d')
         return os.path.join(
             self.video_path,
-            f"{config['subject_name']}_{date}_{config['pi_identifier']}_chunk{self.chunk_counter:03d}.mp4"
+            f"{config['subject_name']}_{date}_{config['pi_identifier']}_chunk{self.chunk_counter:03d}.h264"
         )
 
     def start(self):
@@ -207,16 +251,20 @@ def main():
         # Setup initial recording
         first_file = os.path.join(
             subject_path,
-            f"{config['subject_name']}_{date}_{config['pi_identifier']}_chunk001.mp4"
+            f"{config['subject_name']}_{date}_{config['pi_identifier']}_chunk001.h264"  # Use h264 extension
         )
         
         output = VideoOutput(first_file)
-        encoder = H264Encoder(bitrate=config['camera']['bitrate'])
+        encoder = H264Encoder()
         
+        # Configure encoder for YUV420
         encoder.output = output
+        encoder.repeat_sequence_header = True
+        encoder.inline_headers = True
+        encoder.bitrate = config['camera']['bitrate']
         
-        # Start recording
-        camera.start_recording(encoder, output)
+        # Start recording with specific configuration
+        camera.start_recording(encoder, quality=Quality.VERY_HIGH)
         recorder = ContinuousRecording(camera, encoder, subject_path)
         recorder.start()
 
