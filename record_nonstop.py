@@ -174,8 +174,12 @@ def main():
                 ),
                 "format": "YUV420"  # Using YUV420 for grayscale
             },
-            transform=Transform(colour_space="Rec709")  # This helps ensure proper grayscale conversion
+            transform=Transform()  # Default transform, no rotation or flipping
         )
+        
+        # Set the colour space in the configuration
+        video_config["transform"] = Transform()
+        video_config["colour_space"] = "Rec709"
         
         camera.configure(video_config)
         

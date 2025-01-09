@@ -24,8 +24,8 @@ recording:
 
 # Storage settings
 paths:
-  video_save_path: '/home/lowelllab/Videos/A3726'
-  log_save_path: '/home/lowelllab/Videos/A3726'
+  video_save_path: '/home/lowelllab/Videos'
+  log_save_path: '/home/lowelllab/Videos'
 
 # Cloud storage settings
 cloud:
