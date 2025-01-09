@@ -60,7 +60,7 @@ class ContinuousRecording:
 
     def _monitor(self):
         while self.recording:
-            sleep(self.chunk_length)
+            time.sleep(self.chunk_length)
             if self.recording:
                 self._split_recording()
 
