@@ -22,6 +22,7 @@ camera:
   # Format and exposure
   frame_format: 'YUV420'
   frame_duration_limits: [33333, 120000]  # Updated to match actual camera limits
+  framerate: 10.0  # Range: 0.1 to 120.0
   
   # Lens settings
   lens:
@@ -47,4 +48,3 @@ paths:
 # Cloud storage settings
 cloud:
   rclone_config: 'lowelllab:rpi_name'
-  

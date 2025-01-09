@@ -68,6 +68,13 @@ class SessionMetadata:
             subject_path,
             f"{os.path.basename(subject_path)}_{config['pi_identifier']}_metadata.yaml"
         )
+        
+        # Calculate frame duration from framerate
+        if 'framerate' in config['camera']:
+            frame_duration = int(1000000 / config['camera']['framerate'])  # Convert fps to microseconds
+        else:
+            frame_duration = 100000  # Default 10 fps
+            
         self.metadata = {
             'recording': {
                 'subject_name': config['subject_name'],
@@ -85,7 +92,8 @@ class SessionMetadata:
                     'height': config['camera']['resolution']['height']
                 },
                 'frame_format': config['camera']['frame_format'],
-                'framerate': config['camera']['framerate']
+                'framerate': config['camera'].get('framerate', 10),  # Default to 10 fps if not specified
+                'frame_duration': frame_duration
             }
         }
         self.save()
