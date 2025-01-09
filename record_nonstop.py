@@ -396,10 +396,10 @@ def main():
         recorder.start()
 
         def signal_handler(signum, frame):
-                    handle_shutdown(camera, recorder)
+            handle_shutdown(camera, recorder)
 
-                signal.signal(signal.SIGINT, signal_handler)
-                signal.signal(signal.SIGTERM, signal_handler)
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
 
         print("\nRecording started. Press Ctrl+C to safely stop the recording...")
         while True:
