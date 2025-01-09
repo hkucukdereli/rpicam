@@ -1,7 +1,7 @@
 import os
 import threading
 import logging
-from time import sleep
+import time
 from datetime import datetime
 from .video_output import VideoOutput
 from .metadata import SessionMetadata
@@ -74,15 +74,12 @@ class ContinuousRecording:
             new_output = VideoOutput(new_file, self.config)
             old_output = self.encoder.output
             
-            # Switch to new output
             self.encoder.output = new_output
             
-            # Close old output and update metadata
             if old_output:
                 try:
                     old_output.close()
-                    # Give some time for conversion to complete
-                    sleep(1)
+                    time.sleep(1)  # Using full module path
                     self._update_metadata(old_output)
                 except Exception as e:
                     logging.error(f"Error handling old output: {e}")
@@ -93,14 +90,12 @@ class ContinuousRecording:
             logging.error(f"Error during split recording: {str(e)}")
 
     def stop(self):
-        """Safely stop recording and ensure final metadata update"""
         self.recording = False
         try:
             if self.encoder and self.encoder.output:
                 final_output = self.encoder.output
                 final_output.close()
-                # Give some time for the conversion to complete
-                sleep(1)
+                time.sleep(1)  # Using full module path
                 self._update_metadata(final_output)
             
             self.metadata.finalize(datetime.now())

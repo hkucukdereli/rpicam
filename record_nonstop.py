@@ -14,22 +14,25 @@ from rpicam.camera_manager import setup_camera, create_encoder
 def handle_shutdown(camera, recorder):
     print("\nInitiating safe shutdown...")
     try:
-        if camera:
-            camera.stop_recording()
-            logging.info("Camera recording stopped")
-        
         if recorder:
             recorder.stop()
             logging.info("Recorder stopped")
         
-        sleep(1)
+        time.sleep(0.5)  # Short delay before stopping camera
+        
+        if camera:
+            camera.stop_recording()
+            camera.close()  # Explicitly close the camera
+            logging.info("Camera recording stopped and closed")
+        
+        time.sleep(0.5)  # Give time for final cleanup
         logging.shutdown()
         print("Shutdown complete. All files have been saved.")
     except Exception as e:
         logging.exception("Error during shutdown")
         print(f"Error during shutdown: {str(e)}")
     finally:
-        sys.exit(0)
+        os._exit(0)
 
 def main():
     try:

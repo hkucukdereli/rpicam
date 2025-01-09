@@ -2,7 +2,7 @@ import os
 import csv
 import threading
 import logging
-from time import time
+import time
 from datetime import datetime
 import subprocess
 from picamera2.outputs import FileOutput
@@ -17,14 +17,13 @@ class VideoOutput(FileOutput):
         self.config = config
         self.mp4_filepath = None
         
-        # Create timestamp file
         timestamp_path = filepath.replace('.h264', '_timestamps.csv')
         self.timestamp_file = open(timestamp_path, 'w', newline='')
         self.timestamp_writer = csv.writer(self.timestamp_file)
         self.timestamp_writer.writerow(['frame_number', 'time_since_start', 'system_time'])
         
         self.frame_count = 0
-        self.start_time = time()
+        self.start_time = time.time()
         self.buffer_size = 0
 
     def outputframe(self, frame, keyframe=True, timestamp=None, packet=None, audio=None):
@@ -76,22 +75,26 @@ class VideoOutput(FileOutput):
     def _convert_to_mp4(self):
         try:
             h264_file = self.filepath
+            if not os.path.exists(h264_file):
+                logging.error(f"H264 file not found: {h264_file}")
+                return
+
             mp4_file = h264_file.replace('.h264', '.mp4')
             
             # Wait a moment to ensure file is completely written
-            time.sleep(0.5)
+            time.sleep(0.5)  # Using full module path
             
-            # Add options to handle the PPS issues
             convert_command = [
                 'ffmpeg', '-y',
                 '-f', 'h264',
-                '-fflags', '+genpts',  # Generate presentation timestamps
+                '-r', str(int(1000000 / self.config['camera']['frame_duration_limits'][0])),
                 '-i', h264_file,
                 '-c:v', 'copy',
                 '-movflags', '+faststart',
                 mp4_file
             ]
             
+            logging.info(f"Starting conversion of {h264_file} to {mp4_file}")
             result = subprocess.run(convert_command, 
                                  capture_output=True, 
                                  text=True)
@@ -103,9 +106,11 @@ class VideoOutput(FileOutput):
                     os.remove(h264_file)
                 else:
                     logging.error("Conversion produced empty MP4 file")
+                    self.mp4_filepath = None
             else:
                 logging.error(f"FFmpeg conversion failed: {result.stderr}")
+                self.mp4_filepath = None
                     
         except Exception as e:
             logging.error(f"Error during conversion: {e}")
-
+            self.mp4_filepath = None
