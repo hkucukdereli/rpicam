@@ -114,6 +114,8 @@ class VideoOutput(FileOutput):
         super().__init__(filepath)
         self.filepath = filepath
         self.file = open(filepath, 'wb')
+        self._is_closed = False
+        self._lock = threading.Lock()
         
         # Create timestamp file
         timestamp_path = filepath.replace('.h264', '_timestamps.csv')
@@ -126,44 +128,56 @@ class VideoOutput(FileOutput):
         self.buffer_size = 0
 
     def outputframe(self, frame, keyframe=True, timestamp=None, packet=None, audio=None):
-        try:
-            # Write video frame
-            self.file.write(frame)
-            self.buffer_size += len(frame)
+        with self._lock:
+            if self._is_closed:
+                return
             
-            # Force flush more frequently
-            if self.buffer_size >= 512 * 1024:  # Flush every 512KB
-                self.file.flush()
-                self.buffer_size = 0
-            
-            # Write timestamp
-            self.timestamp_writer.writerow([
-                self.frame_count,
-                f"{time() - self.start_time:.6f}",
-                datetime.now().isoformat()
-            ])
-            self.frame_count += 1
-            
-            # Flush timestamp file more frequently
-            if self.frame_count % 10 == 0:  # Every 10 frames
-                self.timestamp_file.flush()
+            try:
+                # Write video frame
+                self.file.write(frame)
+                self.buffer_size += len(frame)
                 
-        except Exception as e:
-            logging.error(f"Error writing frame: {e}")
+                # Force flush more frequently
+                if self.buffer_size >= 512 * 1024:  # Flush every 512KB
+                    self.file.flush()
+                    self.buffer_size = 0
+                
+                # Write timestamp
+                self.timestamp_writer.writerow([
+                    self.frame_count,
+                    f"{time() - self.start_time:.6f}",
+                    datetime.now().isoformat()
+                ])
+                self.frame_count += 1
+                
+                # Flush timestamp file more frequently
+                if self.frame_count % 10 == 0:  # Every 10 frames
+                    self.timestamp_file.flush()
+                    
+            except Exception as e:
+                # Only log if we're not in the process of closing
+                if not self._is_closed:
+                    logging.error(f"Error writing frame: {e}")
 
     def close(self):
-        try:
-            if hasattr(self, 'file'):
-                self.file.flush()
-                self.file.close()
-            if hasattr(self, 'timestamp_file'):
-                self.timestamp_file.flush()
-                self.timestamp_file.close()
-                
-            # Convert h264 to mp4 after closing
-            self._convert_to_mp4()
-        except Exception as e:
-            logging.error(f"Error closing output: {e}")
+        with self._lock:
+            if self._is_closed:
+                return
+            
+            self._is_closed = True
+            
+            try:
+                if hasattr(self, 'file'):
+                    self.file.flush()
+                    self.file.close()
+                if hasattr(self, 'timestamp_file'):
+                    self.timestamp_file.flush()
+                    self.timestamp_file.close()
+                    
+                # Convert h264 to mp4 after closing
+                self._convert_to_mp4()
+            except Exception as e:
+                logging.error(f"Error closing output: {e}")
             
     def _convert_to_mp4(self):
         try:
@@ -265,14 +279,18 @@ class ContinuousRecording:
 def handle_shutdown(camera, recorder):
     print("\nInitiating safe shutdown...")
     try:
-        if recorder:
-            recorder.stop()
-        
+        # First stop recording to prevent new frames
         if camera:
             camera.stop_recording()
             logging.info("Camera recording stopped")
         
-        sleep(2)
+        # Then stop the recorder and handle metadata
+        if recorder:
+            recorder.stop()
+            logging.info("Recorder stopped")
+        
+        # Give time for final operations
+        sleep(1)
         logging.shutdown()
         print("Shutdown complete. All files have been saved.")
     except Exception as e:
@@ -386,3 +404,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
