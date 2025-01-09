@@ -5,11 +5,11 @@ import logging
 from time import sleep
 from datetime import datetime
 
-from .config import load_config
-from .utils import get_next_session_id, get_session_folder_name, ensure_directory_exists
-from .video_output import VideoOutput
-from .recorder import ContinuousRecording
-from .camera_manager import setup_camera, create_encoder
+from rpicam.config import load_config
+from rpicam.utils import get_next_session_id, get_session_folder_name, ensure_directory_exists
+from rpicam.video_output import VideoOutput
+from rpicam.recorder import ContinuousRecording
+from rpicam.camera_manager import setup_camera, create_encoder
 
 def handle_shutdown(camera, recorder):
     print("\nInitiating safe shutdown...")
