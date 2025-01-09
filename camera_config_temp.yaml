@@ -12,15 +12,15 @@ camera:
   resolution:
     width: 2304
     height: 1296
-  frame_format: 'YUV420'
+  frame_format: 'XBGR8888'
   lens:
     position: 4
   frame_duration_limits: [100000, 100000]
-  bitrate: 2000000
+  bitrate: 1000000
 
 # Recording settings
 recording:
-  chunk_length: 36  # seconds
+  chunk_length: 3600  # seconds
 
 # Storage settings
 paths:

@@ -344,7 +344,8 @@ def main():
                 ),
                 "format": config['camera']['frame_format']
             },
-            encode="main"
+            encode="main",
+            colour_space="NONE"
         )
         camera.configure(video_config)
         
