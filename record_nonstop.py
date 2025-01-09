@@ -370,7 +370,7 @@ def main():
         # Setup initial recording
         first_file = os.path.join(
             subject_path,
-            f"{config['subject_name']}_{start_time.strftime('%Y%m%d')}_{config['pi_identifier']}_chunk001.h264"
+            f"{config['subject_name']}_{start_time.strftime('%Y%m%d')}_{session_id}_{config['pi_identifier']}_chunk001.h264"
         )
         
         output = VideoOutput(first_file)
