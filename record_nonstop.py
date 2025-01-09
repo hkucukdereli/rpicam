@@ -20,6 +20,43 @@ def load_config(config_path='camera_config.yaml'):
 
 config = load_config()
 
+def get_next_session_id(base_path, subject_name, recording_date):
+    """
+    Scan the base directory for existing session folders and return the next available session ID.
+    Format: subject_YYYYMMDD_XX
+    Example: If subject_20250109_1 exists, return "2"
+    """
+    try:
+        # Create the prefix pattern to match
+        folder_prefix = f"{subject_name}_{recording_date}"
+        
+        # Get all directories that match the pattern subject_YYYYMMDD_X
+        existing_sessions = []
+        if os.path.exists(base_path):
+            for dirname in os.listdir(base_path):
+                # Check if directory matches our pattern
+                if dirname.startswith(folder_prefix):
+                    try:
+                        # Extract session ID from the end
+                        session_id = int(dirname.split('_')[-1])
+                        existing_sessions.append(session_id)
+                    except (ValueError, IndexError):
+                        continue
+        
+        # If no existing sessions, start with 1
+        if not existing_sessions:
+            return 1
+        
+        # Otherwise, return next available ID
+        return max(existing_sessions) + 1
+    except Exception as e:
+        logging.error(f"Error getting next session ID: {e}")
+        return 1
+
+def get_session_folder_name(subject_name, recording_date, session_id):
+    """Generate folder name in format subject_YYYYMMDD_X"""
+    return f"{subject_name}_{recording_date}_{session_id}"
+
 def ensure_directory_exists(path):
     if not os.path.exists(path):
         os.makedirs(path)
@@ -27,13 +64,18 @@ def ensure_directory_exists(path):
 
 class SessionMetadata:
     def __init__(self, subject_path, start_time):
+        session_folder = os.path.basename(subject_path)  # Format: subject_YYYYMMDD_X
+        folder_parts = session_folder.split('_')
+        
         self.filepath = os.path.join(
             subject_path,
-            f"{config['subject_name']}_{start_time.strftime('%Y%m%d')}_{config['pi_identifier']}_metadata.yaml"
+            f"{session_folder}_{config['pi_identifier']}_metadata.yaml"
         )
         self.metadata = {
             'recording': {
-                'subject_name': config['subject_name'],
+                'subject_name': folder_parts[0],
+                'recording_date': folder_parts[1],
+                'session_id': int(folder_parts[2]),
                 'pi_identifier': config['pi_identifier'],
                 'start_time': start_time.isoformat(),
                 'end_time': None,
@@ -170,10 +212,10 @@ class ContinuousRecording:
         self.metadata = SessionMetadata(video_path, start_time)
         
     def _generate_filename(self):
-        date = datetime.now().strftime('%Y%m%d')
+        session_folder = os.path.basename(self.video_path)  # This will be subject_YYYYMMDD_X
         return os.path.join(
             self.video_path,
-            f"{config['subject_name']}_{date}_{config['pi_identifier']}_chunk{self.chunk_counter:03d}.h264"
+            f"{session_folder}_{config['pi_identifier']}_chunk{self.chunk_counter:03d}.h264"
         )
 
     def start(self):
@@ -241,16 +283,23 @@ def handle_shutdown(camera, recorder):
 
 def main():
     try:
-        # Setup directories
-        subject_path = os.path.join(config['paths']['video_save_path'], config['subject_name'])
-        ensure_directory_exists(subject_path)
+        # Get current date in YYYYMMDD format
+        recording_date = datetime.now().strftime('%Y%m%d')
         
-        date = datetime.now().strftime('%Y%m%d')
+        # Get next available session ID
+        base_video_path = config['paths']['video_save_path']
+        subject_name = config['subject_name']
+        session_id = get_next_session_id(base_video_path, subject_name, recording_date)
+        
+        # Create session-specific directory with new naming format
+        session_folder = get_session_folder_name(subject_name, recording_date, session_id)
+        subject_path = os.path.join(base_video_path, session_folder)
+        ensure_directory_exists(subject_path)
         
         # Setup logging
         log_file = os.path.join(
             subject_path,
-            f"{config['subject_name']}_{date}_{config['pi_identifier']}.log"
+            f"{session_folder}_{config['pi_identifier']}.log"
         )
         logging.basicConfig(
             filename=log_file,
@@ -258,7 +307,7 @@ def main():
             format='%(asctime)s:%(levelname)s:%(message)s'
         )
         
-        logging.info("Starting recording session")
+        logging.info(f"Starting recording session {session_id}")
 
         # Initialize camera
         camera = Picamera2()
