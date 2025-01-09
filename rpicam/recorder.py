@@ -1,10 +1,9 @@
-import threading
-from time import sleep
 import os
+import threading
 import logging
+from time import sleep
 from datetime import datetime
 from .video_output import VideoOutput
-from .metadata import SessionMetadata
 
 class ContinuousRecording:
     def __init__(self, camera, encoder, video_path, start_time, config, initial_chunk=1):
@@ -27,10 +26,15 @@ class ContinuousRecording:
 
     def _update_metadata(self, output):
         """Update metadata with chunk information"""
-        if output and hasattr(output, 'mp4_filepath') and os.path.exists(output.mp4_filepath):
-            self.total_frames += output.frame_count
-            self.metadata.update_chunk(output.mp4_filepath, self.total_frames)
-            logging.info(f"Updated metadata with {output.mp4_filepath}, total frames: {self.total_frames}")
+        try:
+            if output and hasattr(output, 'mp4_filepath') and output.mp4_filepath and os.path.exists(output.mp4_filepath):
+                self.total_frames += output.frame_count
+                self.metadata.update_chunk(output.mp4_filepath, self.total_frames)
+                logging.info(f"Updated metadata with {output.mp4_filepath}, total frames: {self.total_frames}")
+            else:
+                logging.warning("Output or MP4 filepath not available for metadata update")
+        except Exception as e:
+            logging.error(f"Error updating metadata: {e}")
 
     def start(self):
         threading.Thread(target=self._monitor, daemon=True).start()
@@ -44,8 +48,11 @@ class ContinuousRecording:
     def _split_recording(self):
         try:
             new_file = self._generate_filename()
+            if not new_file:
+                logging.error("Failed to generate new filename")
+                return
+                
             new_output = VideoOutput(new_file, self.config)
-            
             old_output = self.encoder.output
             
             # Switch to new output
@@ -53,8 +60,11 @@ class ContinuousRecording:
             
             # Close old output and update metadata
             if old_output:
-                old_output.close()
-                self._update_metadata(old_output)
+                try:
+                    old_output.close()
+                    self._update_metadata(old_output)
+                except Exception as e:
+                    logging.error(f"Error handling old output: {e}")
             
             self.chunk_counter += 1
             logging.info(f"Started new chunk: {new_file}")
@@ -67,10 +77,11 @@ class ContinuousRecording:
         try:
             if self.encoder and self.encoder.output:
                 final_output = self.encoder.output
-                final_output.close()  # This will trigger the MP4 conversion
-                self._update_metadata(final_output)  # Update metadata with final chunk
+                final_output.close()
+                # Give some time for the conversion to complete
+                sleep(1)
+                self._update_metadata(final_output)
             
-            # Finalize metadata with end time
             self.metadata.finalize(datetime.now())
             logging.info(f"Recording stopped. Total frames recorded: {self.total_frames}")
         except Exception as e:

@@ -1,10 +1,10 @@
 import os
 import csv
 import threading
+import logging
 from time import time
 from datetime import datetime
 import subprocess
-import logging
 from picamera2.outputs import FileOutput
 
 class VideoOutput(FileOutput):
@@ -15,7 +15,7 @@ class VideoOutput(FileOutput):
         self._is_closed = False
         self._lock = threading.Lock()
         self.config = config
-        self.mp4_filepath = None  # Will store the MP4 path after conversion
+        self.mp4_filepath = None
         
         # Create timestamp file
         timestamp_path = filepath.replace('.h264', '_timestamps.csv')
@@ -78,25 +78,28 @@ class VideoOutput(FileOutput):
             h264_file = self.filepath
             mp4_file = h264_file.replace('.h264', '.mp4')
             
-            frame_duration = self.config['camera']['frame_duration_limits'][0]
-            framerate = int(1000000 / frame_duration)
+            # Wait a moment to ensure file is completely written
+            time.sleep(0.5)
             
+            # Add options to handle the PPS issues
             convert_command = [
                 'ffmpeg', '-y',
                 '-f', 'h264',
-                '-r', str(framerate),
+                '-fflags', '+genpts',  # Generate presentation timestamps
                 '-i', h264_file,
                 '-c:v', 'copy',
                 '-movflags', '+faststart',
                 mp4_file
             ]
             
-            result = subprocess.run(convert_command, capture_output=True, text=True)
+            result = subprocess.run(convert_command, 
+                                 capture_output=True, 
+                                 text=True)
             
             if result.returncode == 0:
                 if os.path.exists(mp4_file) and os.path.getsize(mp4_file) > 0:
                     logging.info(f"Successfully converted to {mp4_file}")
-                    self.mp4_filepath = mp4_file  # Store the MP4 path
+                    self.mp4_filepath = mp4_file
                     os.remove(h264_file)
                 else:
                     logging.error("Conversion produced empty MP4 file")
