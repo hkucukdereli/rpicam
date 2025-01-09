@@ -256,9 +256,9 @@ class ContinuousRecording:
             # Close old output and update metadata
             if old_output:
                 old_output.close()
-                mp4_file = old_output.filepath.replace('.h264', '.mp4')
-                if os.path.exists(mp4_file):
-                    self.metadata.update_chunk(mp4_file, old_frame_count)
+                # Use the stored mp4 filepath that was set during conversion
+                if hasattr(old_output, 'mp4_filepath') and os.path.exists(old_output.mp4_filepath):
+                    self.metadata.update_chunk(old_output.mp4_filepath, old_frame_count)
             
             self.chunk_counter += 1
             logging.info(f"Started new chunk: {new_file}")
@@ -271,9 +271,9 @@ class ContinuousRecording:
         if self.encoder and self.encoder.output:
             final_output = self.encoder.output
             final_output.close()
-            mp4_file = final_output.filepath.replace('.h264', '.mp4')
-            if os.path.exists(mp4_file):
-                self.metadata.update_chunk(mp4_file, final_output.frame_count)
+            # Use the stored mp4 filepath that was set during conversion
+            if hasattr(final_output, 'mp4_filepath') and os.path.exists(final_output.mp4_filepath):
+                self.metadata.update_chunk(final_output.mp4_filepath, final_output.frame_count)
         self.metadata.finalize(datetime.now())
 
 def handle_shutdown(camera, recorder):
