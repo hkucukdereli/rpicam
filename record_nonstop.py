@@ -172,7 +172,7 @@ def main():
                     config['camera']['resolution']['width'],
                     config['camera']['resolution']['height']
                 ),
-                "format": "MJPEG"  # Use MJPEG format
+                "format": "YUV420"  # Use YUV format, which separates luminance from color
             },
             encode="main"
         )
