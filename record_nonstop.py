@@ -165,22 +165,29 @@ def main():
         # Initialize camera with grayscale settings
         camera = Picamera2()
         
-        # Create video configuration with RGB format
+        # Create video configuration
         video_config = camera.create_video_configuration(
             main={
                 "size": (
                     config['camera']['resolution']['width'],
                     config['camera']['resolution']['height']
                 ),
-                "format": "RGB888"
+                "format": "YUYV"  # Use YUYV format which includes luminance
             },
             transform=Transform(),
             encode="main"
         )
         
-        # Add colour effects for grayscale
+        camera.configure(video_config)
+        
+        # Set camera controls
         camera.set_controls({
-            "ColourFX": (1, 0, 0)  # Enable grayscale effect
+            "AfMode": controls.AfModeEnum.Manual,
+            "LensPosition": config['camera']['lens']['position'],
+            "FrameDurationLimits": tuple(config['camera']['frame_duration_limits']),
+            "Brightness": config['camera']['brightness'],
+            "Contrast": config['camera']['contrast'],
+            "Saturation": 0  # Set saturation to minimum to help achieve grayscale
         })
         
         camera.configure(video_config)
