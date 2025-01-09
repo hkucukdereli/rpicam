@@ -32,6 +32,7 @@ class VideoOutput(FileOutput):
                 return
             
             try:
+                # Write video frame
                 self.file.write(frame)
                 self.buffer_size += len(frame)
                 
@@ -39,9 +40,11 @@ class VideoOutput(FileOutput):
                     self.file.flush()
                     self.buffer_size = 0
                 
+                # Write timestamp
+                current_time = time.time()  # Get current time
                 self.timestamp_writer.writerow([
                     self.frame_count,
-                    f"{time() - self.start_time:.6f}",
+                    f"{current_time - self.start_time:.6f}",
                     datetime.now().isoformat()
                 ])
                 self.frame_count += 1
@@ -71,6 +74,7 @@ class VideoOutput(FileOutput):
                 self._convert_to_mp4()
             except Exception as e:
                 logging.error(f"Error closing output: {e}")
+                self.mp4_filepath = None
             
     def _convert_to_mp4(self):
         try:
@@ -82,7 +86,7 @@ class VideoOutput(FileOutput):
             mp4_file = h264_file.replace('.h264', '.mp4')
             
             # Wait a moment to ensure file is completely written
-            time.sleep(0.5)  # Using full module path
+            time.sleep(0.5)
             
             convert_command = [
                 'ffmpeg', '-y',
