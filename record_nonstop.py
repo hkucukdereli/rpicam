@@ -389,7 +389,7 @@ def main():
         encoder.repeat_sequence_header = True
         encoder.inline_headers = True
         encoder.bitrate = config['camera']['bitrate']
-        encoder.quality = Quality.LOSSLESS  # Add this line to ensure proper encoding
+        encoder.quality = Quality.VERY_HIGH
         
         # Start recording
         camera.start_recording(encoder=encoder, output=output)
