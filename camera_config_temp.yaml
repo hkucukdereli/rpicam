@@ -1,0 +1,32 @@
+# config.yaml
+# Subject name
+subject_name: 'A3726'
+
+# Camera identification
+pi_identifier: 'eunice'
+
+# Camera settings
+camera:
+  brightness: 50
+  contrast: 50
+  resolution:
+    width: 2304
+    height: 1296
+  frame_format: 'YUV420'
+  lens:
+    position: 4
+  frame_duration_limits: [100000, 100000]
+  bitrate: 2000000
+
+# Recording settings
+recording:
+  chunk_length: 36  # seconds
+
+# Storage settings
+paths:
+  video_save_path: '/home/lowelllab/Videos/A3726'
+  log_save_path: '/home/lowelllab/Videos/A3726'
+
+# Cloud storage settings
+cloud:
+  rclone_config: 'lowelllab:eunice'
