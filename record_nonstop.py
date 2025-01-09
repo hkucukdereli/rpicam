@@ -31,7 +31,6 @@ class VideoOutput(FileOutput):
         self.filepath = filepath
         self.file = open(filepath, 'wb')
         
-        # Create timestamp file
         timestamp_path = filepath.replace('.mp4', '_timestamps.csv')
         self.timestamp_file = open(timestamp_path, 'w', newline='')
         self.timestamp_writer = csv.writer(self.timestamp_file)
@@ -43,16 +42,13 @@ class VideoOutput(FileOutput):
 
     def outputframe(self, frame, keyframe=True, timestamp=None, packet=None, audio=None):
         try:
-            # Write video frame
             self.file.write(frame)
             self.buffer_size += len(frame)
             
-            # Force flush every 1MB
             if self.buffer_size >= 1024 * 1024:
                 self.file.flush()
                 self.buffer_size = 0
             
-            # Write timestamp
             self.timestamp_writer.writerow([
                 self.frame_count,
                 f"{time() - self.start_time:.6f}",
@@ -60,7 +56,6 @@ class VideoOutput(FileOutput):
             ])
             self.frame_count += 1
             
-            # Flush timestamp file periodically
             if self.frame_count % 30 == 0:
                 self.timestamp_file.flush()
                 
@@ -162,17 +157,17 @@ def main():
         
         logging.info("Starting recording session")
 
-        # Initialize camera with grayscale settings
+        # Initialize camera
         camera = Picamera2()
         
-        # Create video configuration
+        # Create video configuration with YUV420 format
         video_config = camera.create_video_configuration(
             main={
                 "size": (
                     config['camera']['resolution']['width'],
                     config['camera']['resolution']['height']
                 ),
-                "format": "YUV420"  # Use YUV format, which separates luminance from color
+                "format": "YUV420"
             },
             encode="main"
         )
@@ -186,20 +181,7 @@ def main():
             "FrameDurationLimits": tuple(config['camera']['frame_duration_limits']),
             "Brightness": config['camera']['brightness'],
             "Contrast": config['camera']['contrast'],
-            "Saturation": 0.0  # Set minimum saturation for grayscale effect
-        })
-        
-        camera.configure(video_config)
-        
-        # Set camera controls
-        camera.set_controls({
-            "AfMode": controls.AfModeEnum.Manual,
-            "LensPosition": config['camera']['lens']['position'],
-            "FrameDurationLimits": tuple(config['camera']['frame_duration_limits']),
-            "Brightness": config['camera']['brightness'],
-            "Contrast": config['camera']['contrast'],
-            "ColourFX": (1, 0, 0),  # Enable grayscale effect
-            "ColourFXEnable": True   # Make sure color effects are enabled
+            "Saturation": 0.0
         })
 
         # Setup initial recording
@@ -211,10 +193,7 @@ def main():
         output = VideoOutput(first_file)
         encoder = H264Encoder(bitrate=config['camera']['bitrate'])
         
-        # Configure encoder for better compatibility
         encoder.output = output
-        encoder.repeat_sequence_header = True
-        encoder.inline_headers = True
         
         # Start recording
         camera.start_recording(encoder, output)

@@ -12,7 +12,7 @@ camera:
   resolution:
     width: 2304
     height: 1296
-  frame_format: 'XBGR8888'
+  frame_format: 'YUV420'
   lens:
     position: 4
   frame_duration_limits: [100000, 100000]
