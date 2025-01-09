@@ -172,11 +172,9 @@ def main():
                     config['camera']['resolution']['width'],
                     config['camera']['resolution']['height']
                 ),
-                "format": "RGB888"
+                "format": "MJPEG"  # Use MJPEG format
             },
-            transform=Transform(),
-            encode="main",
-            colour_space="Rec709"  # Use standard color space
+            encode="main"
         )
         
         camera.configure(video_config)
@@ -188,8 +186,7 @@ def main():
             "FrameDurationLimits": tuple(config['camera']['frame_duration_limits']),
             "Brightness": config['camera']['brightness'],
             "Contrast": config['camera']['contrast'],
-            "Saturation": 0.0,  # Set minimum saturation for grayscale effect
-            "NoiseReductionMode": controls.draft.NoiseReductionModeEnum.HighQuality
+            "Saturation": 0.0  # Set minimum saturation for grayscale effect
         })
         
         camera.configure(video_config)
