@@ -15,6 +15,7 @@ class VideoOutput(FileOutput):
         self._is_closed = False
         self._lock = threading.Lock()
         self.config = config
+        self.mp4_filepath = None  # Will store the MP4 path after conversion
         
         # Create timestamp file
         timestamp_path = filepath.replace('.h264', '_timestamps.csv')
@@ -95,6 +96,7 @@ class VideoOutput(FileOutput):
             if result.returncode == 0:
                 if os.path.exists(mp4_file) and os.path.getsize(mp4_file) > 0:
                     logging.info(f"Successfully converted to {mp4_file}")
+                    self.mp4_filepath = mp4_file  # Store the MP4 path
                     os.remove(h264_file)
                 else:
                     logging.error("Conversion produced empty MP4 file")
@@ -103,3 +105,4 @@ class VideoOutput(FileOutput):
                     
         except Exception as e:
             logging.error(f"Error during conversion: {e}")
+

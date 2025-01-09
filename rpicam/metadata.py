@@ -33,10 +33,13 @@ class SessionMetadata:
         }
         self.save()
     
-    def update_chunk(self, mp4_file, frame_count):
-        self.metadata['recording']['video_files'].append(mp4_file)
-        self.metadata['recording']['total_frames'] += frame_count
+    def update_chunk(self, mp4_file, total_frames):
+        """Update metadata with new chunk information and total frame count"""
+        if mp4_file not in self.metadata['recording']['video_files']:
+            self.metadata['recording']['video_files'].append(mp4_file)
+        self.metadata['recording']['total_frames'] = total_frames
         self.save()
+        logging.info(f"Metadata updated - Added file: {mp4_file}, Total frames: {total_frames}")
     
     def finalize(self, end_time):
         self.metadata['recording']['end_time'] = end_time.isoformat()

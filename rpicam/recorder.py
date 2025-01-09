@@ -13,16 +13,24 @@ class ContinuousRecording:
         self.video_path = video_path
         self.chunk_length = config['recording']['chunk_length']
         self.recording = True
-        self.chunk_counter = initial_chunk + 1  # Start with next chunk number
+        self.chunk_counter = initial_chunk + 1
         self.config = config
         self.metadata = SessionMetadata(video_path, start_time, config)
-        
+        self.total_frames = 0
+
     def _generate_filename(self):
         session_folder = os.path.basename(self.video_path)
         return os.path.join(
             self.video_path,
             f"{session_folder}_{self.config['pi_identifier']}_chunk{self.chunk_counter:03d}.h264"
         )
+
+    def _update_metadata(self, output):
+        """Update metadata with chunk information"""
+        if output and hasattr(output, 'mp4_filepath') and os.path.exists(output.mp4_filepath):
+            self.total_frames += output.frame_count
+            self.metadata.update_chunk(output.mp4_filepath, self.total_frames)
+            logging.info(f"Updated metadata with {output.mp4_filepath}, total frames: {self.total_frames}")
 
     def start(self):
         threading.Thread(target=self._monitor, daemon=True).start()
@@ -39,14 +47,14 @@ class ContinuousRecording:
             new_output = VideoOutput(new_file, self.config)
             
             old_output = self.encoder.output
-            old_frame_count = old_output.frame_count if old_output else 0
             
+            # Switch to new output
             self.encoder.output = new_output
             
+            # Close old output and update metadata
             if old_output:
                 old_output.close()
-                if hasattr(old_output, 'mp4_filepath') and os.path.exists(old_output.mp4_filepath):
-                    self.metadata.update_chunk(old_output.mp4_filepath, old_frame_count)
+                self._update_metadata(old_output)
             
             self.chunk_counter += 1
             logging.info(f"Started new chunk: {new_file}")
@@ -54,10 +62,16 @@ class ContinuousRecording:
             logging.error(f"Error during split recording: {str(e)}")
 
     def stop(self):
+        """Safely stop recording and ensure final metadata update"""
         self.recording = False
-        if self.encoder and self.encoder.output:
-            final_output = self.encoder.output
-            final_output.close()
-            if hasattr(final_output, 'mp4_filepath') and os.path.exists(final_output.mp4_filepath):
-                self.metadata.update_chunk(final_output.mp4_filepath, final_output.frame_count)
-        self.metadata.finalize(datetime.now())
+        try:
+            if self.encoder and self.encoder.output:
+                final_output = self.encoder.output
+                final_output.close()  # This will trigger the MP4 conversion
+                self._update_metadata(final_output)  # Update metadata with final chunk
+            
+            # Finalize metadata with end time
+            self.metadata.finalize(datetime.now())
+            logging.info(f"Recording stopped. Total frames recorded: {self.total_frames}")
+        except Exception as e:
+            logging.error(f"Error during recording stop: {e}")
