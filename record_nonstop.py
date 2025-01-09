@@ -174,14 +174,28 @@ def main():
         
         camera.configure(video_config)
         
-        # Set camera controls
+        # Set camera controls with correct ranges
         camera.set_controls({
+            # Auto-focus settings
             "AfMode": controls.AfModeEnum.Manual,
             "LensPosition": config['camera']['lens']['position'],
+            
+            # Frame rate control
             "FrameDurationLimits": tuple(config['camera']['frame_duration_limits']),
-            "Brightness": config['camera']['brightness'],
-            "Contrast": config['camera']['contrast'],
-            "Saturation": 0.0
+            
+            # Image quality controls
+            "Brightness": config['camera']['brightness'],      # -1.0 to 1.0
+            "Contrast": config['camera']['contrast'],         # 0.0 to 32.0
+            "Saturation": config['camera']['saturation'],     # 0.0 to 32.0
+            "Sharpness": config['camera']['sharpness'],      # 0.0 to 16.0
+            "NoiseReductionMode": config['camera']['noise_reduction'],
+            
+            # Exposure controls
+            "AnalogueGain": config['camera']['analog_gain'],  # 1.0 to 16.0
+            "ExposureValue": config['camera']['exposure_value'],  # -8.0 to 8.0
+            
+            # Disable auto white balance since we're doing grayscale
+            "AwbEnable": False
         })
 
         # Setup initial recording
