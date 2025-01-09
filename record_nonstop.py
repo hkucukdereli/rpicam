@@ -403,4 +403,15 @@ def main():
         signal.signal(signal.SIGTERM, signal_handler)
 
         print("\nRecording started. Press Ctrl+C to safely stop the recording...")
-        
+
+        while True:
+            sleep(1)
+
+    except Exception as e:
+        logging.exception("Error during recording")
+        print(f"\nError: {str(e)}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
+    
