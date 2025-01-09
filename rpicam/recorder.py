@@ -7,13 +7,13 @@ from .video_output import VideoOutput
 from .metadata import SessionMetadata
 
 class ContinuousRecording:
-    def __init__(self, camera, encoder, video_path, start_time, config):
+    def __init__(self, camera, encoder, video_path, start_time, config, initial_chunk=1):
         self.camera = camera
         self.encoder = encoder
         self.video_path = video_path
         self.chunk_length = config['recording']['chunk_length']
         self.recording = True
-        self.chunk_counter = 1
+        self.chunk_counter = initial_chunk + 1  # Start with next chunk number
         self.config = config
         self.metadata = SessionMetadata(video_path, start_time, config)
         

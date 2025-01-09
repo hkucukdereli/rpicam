@@ -59,9 +59,10 @@ def main():
         camera = setup_camera(config)
         start_time = datetime.now()
         
+        initial_chunk = 1
         first_file = os.path.join(
             subject_path,
-            f"{config['subject_name']}_{start_time.strftime('%Y%m%d')}_{session_id}_{config['pi_identifier']}_chunk001.h264"
+            f"{session_folder}_{config['pi_identifier']}_chunk{initial_chunk:03d}.h264"
         )
         
         output = VideoOutput(first_file, config)
@@ -69,7 +70,14 @@ def main():
         encoder.output = output
         
         camera.start_recording(encoder=encoder, output=output)
-        recorder = ContinuousRecording(camera, encoder, subject_path, start_time, config)
+        recorder = ContinuousRecording(
+            camera, 
+            encoder, 
+            subject_path, 
+            start_time, 
+            config,
+            initial_chunk=initial_chunk  # Pass the initial chunk number
+        )
         recorder.start()
 
         def signal_handler(signum, frame):
