@@ -91,7 +91,7 @@ def main():
 
         print("\nRecording started. Press Ctrl+C to safely stop the recording...")
         while True:
-            sleep(1)
+            time.sleep(1)
 
     except Exception as e:
         logging.exception("Error during recording")
