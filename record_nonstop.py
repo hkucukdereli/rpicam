@@ -172,7 +172,7 @@ def main():
                     config['camera']['resolution']['width'],
                     config['camera']['resolution']['height']
                 ),
-                "format": "YUYV"  # Use YUYV format which includes luminance
+                "format": "RGB888"
             },
             transform=Transform(),
             encode="main"
@@ -180,14 +180,15 @@ def main():
         
         camera.configure(video_config)
         
-        # Set camera controls
+        # Set camera controls including grayscale
         camera.set_controls({
             "AfMode": controls.AfModeEnum.Manual,
             "LensPosition": config['camera']['lens']['position'],
             "FrameDurationLimits": tuple(config['camera']['frame_duration_limits']),
             "Brightness": config['camera']['brightness'],
             "Contrast": config['camera']['contrast'],
-            "Saturation": 0  # Set saturation to minimum to help achieve grayscale
+            "ColourFX": (1, 0, 0),  # Enable grayscale effect
+            "ColourFXEnable": True   # Make sure color effects are enabled
         })
         
         camera.configure(video_config)
