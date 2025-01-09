@@ -64,18 +64,15 @@ def ensure_directory_exists(path):
 
 class SessionMetadata:
     def __init__(self, subject_path, start_time):
-        session_folder = os.path.basename(subject_path)  # Format: subject_YYYYMMDD_X
-        folder_parts = session_folder.split('_')
-        
         self.filepath = os.path.join(
             subject_path,
-            f"{session_folder}_{config['pi_identifier']}_metadata.yaml"
+            f"{os.path.basename(subject_path)}_{config['pi_identifier']}_metadata.yaml"
         )
         self.metadata = {
             'recording': {
-                'subject_name': folder_parts[0],
-                'recording_date': folder_parts[1],
-                'session_id': int(folder_parts[2]),
+                'subject_name': config['subject_name'],
+                'recording_date': start_time.strftime('%Y%m%d'),
+                'session_id': os.path.basename(subject_path).split('_')[2],  # Get session_id from folder name
                 'pi_identifier': config['pi_identifier'],
                 'start_time': start_time.isoformat(),
                 'end_time': None,
@@ -88,10 +85,31 @@ class SessionMetadata:
                     'height': config['camera']['resolution']['height']
                 },
                 'frame_format': config['camera']['frame_format'],
-                'frame_duration_limits': config['camera']['frame_duration_limits']
+                'framerate': config['camera']['framerate']
             }
         }
         self.save()
+
+    def update_chunk(self, mp4_file, frame_count):
+        """Update metadata with new chunk information"""
+        if mp4_file not in self.metadata['recording']['video_files']:
+            self.metadata['recording']['video_files'].append(mp4_file)
+            self.metadata['recording']['total_frames'] += frame_count
+            self.save()
+
+    def finalize(self, end_time):
+        """Update end time when recording is finished"""
+        self.metadata['recording']['end_time'] = end_time.isoformat()
+        self.save()
+
+    def save(self):
+        """Save metadata to YAML file"""
+        try:
+            with open(self.filepath, 'w') as f:
+                yaml.dump(self.metadata, f, default_flow_style=False)
+        except Exception as e:
+            logging.error(f"Error saving metadata: {e}")
+
     
     def update_chunk(self, mp4_file, frame_count):
         """Update metadata with new chunk information"""
