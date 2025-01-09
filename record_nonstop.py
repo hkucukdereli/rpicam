@@ -393,16 +393,12 @@ def main():
         # Get start time for the session
         start_time = datetime.now()
         
-        # Setup initial recording
+        # Create recorder first, but initialize encoder before using it
+        encoder = H264Encoder()
         recorder = ContinuousRecording(camera, encoder, subject_path, start_time)
         first_file = recorder._generate_filename()  # Use the same filename generation method
         
         output = VideoOutput(first_file)
-        encoder = H264Encoder()
-        
-        # Start recording
-        camera.start_recording(encoder=encoder, output=output)
-        recorder.start()
         
         # Configure encoder for YUV420
         encoder.output = output
@@ -412,7 +408,6 @@ def main():
         
         # Start recording
         camera.start_recording(encoder=encoder, output=output)
-        recorder = ContinuousRecording(camera, encoder, subject_path, start_time)
         recorder.start()
 
         def signal_handler(signum, frame):
@@ -432,3 +427,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
