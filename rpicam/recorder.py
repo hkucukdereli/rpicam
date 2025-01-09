@@ -19,21 +19,39 @@ class ContinuousRecording:
         self.total_frames = 0
 
     def _generate_filename(self):
-        session_folder = os.path.basename(self.video_path)
-        return os.path.join(
-            self.video_path,
-            f"{session_folder}_{self.config['pi_identifier']}_chunk{self.chunk_counter:03d}.h264"
-        )
+        try:
+            session_folder = os.path.basename(self.video_path)
+            return os.path.join(
+                self.video_path,
+                f"{session_folder}_{self.config['pi_identifier']}_chunk{self.chunk_counter:03d}.h264"
+            )
+        except Exception as e:
+            logging.error(f"Error generating filename: {e}")
+            return None
 
     def _update_metadata(self, output):
         """Update metadata with chunk information"""
         try:
-            if output and hasattr(output, 'mp4_filepath') and output.mp4_filepath and os.path.exists(output.mp4_filepath):
-                self.total_frames += output.frame_count
-                self.metadata.update_chunk(output.mp4_filepath, self.total_frames)
-                logging.info(f"Updated metadata with {output.mp4_filepath}, total frames: {self.total_frames}")
-            else:
-                logging.warning("Output or MP4 filepath not available for metadata update")
+            if output is None:
+                logging.warning("No output provided for metadata update")
+                return
+                
+            if not hasattr(output, 'mp4_filepath'):
+                logging.warning("Output has no mp4_filepath attribute")
+                return
+                
+            if output.mp4_filepath is None:
+                logging.warning("Output mp4_filepath is None")
+                return
+                
+            if not os.path.exists(output.mp4_filepath):
+                logging.warning(f"MP4 file does not exist: {output.mp4_filepath}")
+                return
+                
+            self.total_frames += output.frame_count
+            self.metadata.update_chunk(output.mp4_filepath, self.total_frames)
+            logging.info(f"Updated metadata with {output.mp4_filepath}, total frames: {self.total_frames}")
+            
         except Exception as e:
             logging.error(f"Error updating metadata: {e}")
 
@@ -63,6 +81,8 @@ class ContinuousRecording:
             if old_output:
                 try:
                     old_output.close()
+                    # Give some time for conversion to complete
+                    sleep(1)
                     self._update_metadata(old_output)
                 except Exception as e:
                     logging.error(f"Error handling old output: {e}")
