@@ -20,7 +20,6 @@ def setup_camera(config):
         
         camera.configure(video_config)
         
-        # Add inline headers and SPS/PPS
         controls_dict = {
             "AfMode": controls.AfModeEnum.Manual,
             "LensPosition": config['camera']['lens']['position'],
@@ -28,10 +27,7 @@ def setup_camera(config):
             "Brightness": config['camera']['brightness'],
             "Contrast": config['camera']['contrast'],
             "Saturation": 0.0,
-            "AwbEnable": False,
-            # Additional encoder-related controls
-            "VideoEnableInlineHeaders": True,
-            "VideoRepeatSequenceHeader": True
+            "AwbEnable": False
         }
         
         camera.set_controls(controls_dict)
@@ -41,8 +37,12 @@ def setup_camera(config):
         raise
 
 def create_encoder(config):
+    """Create and configure H264 encoder with appropriate settings"""
     encoder = H264Encoder()
+    
+    # Configure encoder for reliable stream
     encoder.repeat_sequence_header = True
     encoder.inline_headers = True
     encoder.bitrate = config['camera']['bitrate']
+    
     return encoder
