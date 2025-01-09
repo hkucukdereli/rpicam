@@ -172,14 +172,11 @@ def main():
                     config['camera']['resolution']['width'],
                     config['camera']['resolution']['height']
                 ),
-                "format": "YUV420"  # Using YUV420 for grayscale
+                "format": "GREY",  # Using GREY format for direct grayscale
             },
-            transform=Transform()  # Default transform, no rotation or flipping
+            transform=Transform(),  # Default transform, no rotation or flipping
+            encode="main"  # Ensure we're encoding the main stream
         )
-        
-        # Set the colour space in the configuration
-        video_config["transform"] = Transform()
-        video_config["colour_space"] = "Rec709"
         
         camera.configure(video_config)
         
