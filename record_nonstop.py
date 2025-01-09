@@ -165,18 +165,23 @@ def main():
         # Initialize camera with grayscale settings
         camera = Picamera2()
         
-        # Create video configuration with grayscale
+        # Create video configuration with RGB format
         video_config = camera.create_video_configuration(
             main={
                 "size": (
                     config['camera']['resolution']['width'],
                     config['camera']['resolution']['height']
                 ),
-                "format": "GREY",  # Using GREY format for direct grayscale
+                "format": "RGB888"
             },
-            transform=Transform(),  # Default transform, no rotation or flipping
-            encode="main"  # Ensure we're encoding the main stream
+            transform=Transform(),
+            encode="main"
         )
+        
+        # Add colour effects for grayscale
+        camera.set_controls({
+            "ColourFX": (1, 0, 0)  # Enable grayscale effect
+        })
         
         camera.configure(video_config)
         
@@ -187,7 +192,8 @@ def main():
             "FrameDurationLimits": tuple(config['camera']['frame_duration_limits']),
             "Brightness": config['camera']['brightness'],
             "Contrast": config['camera']['contrast'],
-            "ColourGains": (1.0, 1.0)  # Neutral color gains for grayscale
+            "ColourFX": (1, 0, 0),  # Enable grayscale effect
+            "ColourFXEnable": True   # Make sure color effects are enabled
         })
 
         # Setup initial recording
