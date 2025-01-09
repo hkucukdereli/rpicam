@@ -174,8 +174,8 @@ def main():
         
         camera.configure(video_config)
         
-        # Set camera controls with correct ranges
-        camera.set_controls({
+        # Set camera controls with correct ranges and cases
+        controls_dict = {
             # Auto-focus settings
             "AfMode": controls.AfModeEnum.Manual,
             "LensPosition": config['camera']['lens']['position'],
@@ -184,19 +184,25 @@ def main():
             "FrameDurationLimits": tuple(config['camera']['frame_duration_limits']),
             
             # Image quality controls
-            "Brightness": config['camera']['brightness'],      # -1.0 to 1.0
-            "Contrast": config['camera']['contrast'],         # 0.0 to 32.0
-            "Saturation": config['camera']['saturation'],     # 0.0 to 32.0
-            "Sharpness": config['camera']['sharpness'],      # 0.0 to 16.0
-            "NoiseReductionMode": config['camera']['noise_reduction'],
-            
-            # Exposure controls
-            "AnalogueGain": config['camera']['analog_gain'],  # 1.0 to 16.0
-            "ExposureValue": config['camera']['exposure_value'],  # -8.0 to 8.0
+            "Brightness": config['camera']['brightness'],
+            "Contrast": config['camera']['contrast'],
+            "Saturation": 0.0,  # Direct value for grayscale
             
             # Disable auto white balance since we're doing grayscale
             "AwbEnable": False
-        })
+        }
+
+        # Add optional controls if they exist in config
+        if 'sharpness' in config['camera']:
+            controls_dict["Sharpness"] = config['camera']['sharpness']
+        if 'noise_reduction' in config['camera']:
+            controls_dict["NoiseReductionMode"] = config['camera']['noise_reduction']
+        if 'analog_gain' in config['camera']:
+            controls_dict["AnalogueGain"] = config['camera']['analog_gain']
+        if 'exposure_value' in config['camera']:
+            controls_dict["ExposureValue"] = config['camera']['exposure_value']
+            
+        camera.set_controls(controls_dict)
 
         # Setup initial recording
         first_file = os.path.join(
