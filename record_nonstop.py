@@ -175,20 +175,21 @@ def main():
                 "format": "RGB888"
             },
             transform=Transform(),
-            encode="main"
+            encode="main",
+            colour_space="Rec709"  # Use standard color space
         )
         
         camera.configure(video_config)
         
-        # Set camera controls including grayscale
+        # Set camera controls
         camera.set_controls({
             "AfMode": controls.AfModeEnum.Manual,
             "LensPosition": config['camera']['lens']['position'],
             "FrameDurationLimits": tuple(config['camera']['frame_duration_limits']),
             "Brightness": config['camera']['brightness'],
             "Contrast": config['camera']['contrast'],
-            "ColourFX": (1, 0, 0),  # Enable grayscale effect
-            "ColourFXEnable": True   # Make sure color effects are enabled
+            "Saturation": 0.0,  # Set minimum saturation for grayscale effect
+            "NoiseReductionMode": controls.draft.NoiseReductionModeEnum.HighQuality
         })
         
         camera.configure(video_config)
