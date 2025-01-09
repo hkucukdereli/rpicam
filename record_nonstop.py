@@ -2,7 +2,7 @@ import os
 import sys
 import signal
 import logging
-from time import sleep
+import time
 from datetime import datetime
 
 from rpicam.config import load_config
