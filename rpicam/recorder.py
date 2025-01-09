@@ -4,6 +4,7 @@ import logging
 from time import sleep
 from datetime import datetime
 from .video_output import VideoOutput
+from .metadata import SessionMetadata
 
 class ContinuousRecording:
     def __init__(self, camera, encoder, video_path, start_time, config, initial_chunk=1):
