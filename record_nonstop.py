@@ -118,6 +118,23 @@ class SessionMetadata:
         except Exception as e:
             logging.error(f"Error saving metadata: {e}")
 
+    
+    def update_chunk(self, mp4_file, frame_count):
+        """Update metadata with new chunk information"""
+        self.metadata['recording']['video_files'].append(mp4_file)
+        self.metadata['recording']['total_frames'] += frame_count
+        self.save()
+    
+    def finalize(self, end_time):
+        """Update end time when recording is finished"""
+        self.metadata['recording']['end_time'] = end_time.isoformat()
+        self.save()
+    
+    def save(self):
+        """Save metadata to YAML file"""
+        with open(self.filepath, 'w') as f:
+            yaml.dump(self.metadata, f, default_flow_style=False)
+
 class VideoOutput(FileOutput):
     def __init__(self, filepath):
         super().__init__(filepath)
@@ -126,16 +143,15 @@ class VideoOutput(FileOutput):
         self._is_closed = False
         self._lock = threading.Lock()
         
-        # Create timestamp file using the same base filename pattern
-        self.timestamp_path = filepath.replace('.h264', '_timestamps.csv')
-        self.timestamp_file = open(self.timestamp_path, 'w', newline='')
+        # Create timestamp file
+        timestamp_path = filepath.replace('.h264', '_timestamps.csv')
+        self.timestamp_file = open(timestamp_path, 'w', newline='')
         self.timestamp_writer = csv.writer(self.timestamp_file)
         self.timestamp_writer.writerow(['frame_number', 'time_since_start', 'system_time'])
         
         self.frame_count = 0
         self.start_time = time()
         self.buffer_size = 0
-        self.mp4_filepath = None  # Will store the MP4 filepath after conversion
 
     def outputframe(self, frame, keyframe=True, timestamp=None, packet=None, audio=None):
         with self._lock:
@@ -188,11 +204,11 @@ class VideoOutput(FileOutput):
                 self._convert_to_mp4()
             except Exception as e:
                 logging.error(f"Error closing output: {e}")
-
+            
     def _convert_to_mp4(self):
         try:
             h264_file = self.filepath
-            self.mp4_filepath = h264_file.replace('.h264', '.mp4')
+            mp4_file = h264_file.replace('.h264', '.mp4')
             
             # Calculate framerate from frame_duration_limits
             frame_duration = config['camera']['frame_duration_limits'][0]  # in microseconds
@@ -206,7 +222,7 @@ class VideoOutput(FileOutput):
                 '-i', h264_file,
                 '-c:v', 'copy',
                 '-movflags', '+faststart',
-                self.mp4_filepath
+                mp4_file
             ]
             
             result = subprocess.run(convert_command, 
@@ -214,8 +230,8 @@ class VideoOutput(FileOutput):
                                  text=True)
             
             if result.returncode == 0:
-                if os.path.exists(self.mp4_filepath) and os.path.getsize(self.mp4_filepath) > 0:
-                    logging.info(f"Successfully converted to {self.mp4_filepath}")
+                if os.path.exists(mp4_file) and os.path.getsize(mp4_file) > 0:
+                    logging.info(f"Successfully converted to {mp4_file}")
                     os.remove(h264_file)  # Remove h264 file after successful conversion
                 else:
                     logging.error("Conversion produced empty MP4 file")
@@ -234,13 +250,12 @@ class ContinuousRecording:
         self.recording = True
         self.chunk_counter = 1
         self.metadata = SessionMetadata(video_path, start_time)
-        self.session_folder = os.path.basename(video_path)
         
     def _generate_filename(self):
-        """Generate consistent filename for chunks"""
+        session_folder = os.path.basename(self.video_path)  # This will be subject_YYYYMMDD_X
         return os.path.join(
             self.video_path,
-            f"{self.session_folder}_{config['pi_identifier']}_chunk{self.chunk_counter:03d}.h264"
+            f"{session_folder}_{config['pi_identifier']}_chunk{self.chunk_counter:03d}.h264"
         )
 
     def start(self):
@@ -378,22 +393,26 @@ def main():
         # Get start time for the session
         start_time = datetime.now()
         
-        # Create encoder
+        # Setup initial recording
+        recorder = ContinuousRecording(camera, encoder, subject_path, start_time)
+        first_file = recorder._generate_filename()  # Use the same filename generation method
+        
+        output = VideoOutput(first_file)
         encoder = H264Encoder()
+        
+        # Start recording
+        camera.start_recording(encoder=encoder, output=output)
+        recorder.start()
+        
+        # Configure encoder for YUV420
+        encoder.output = output
         encoder.repeat_sequence_header = True
         encoder.inline_headers = True
         encoder.bitrate = config['camera']['bitrate']
         
-        # Create recorder instance first
-        recorder = ContinuousRecording(camera, encoder, subject_path, start_time)
-        
-        # Setup initial recording using recorder's filename generation
-        first_file = recorder._generate_filename()
-        output = VideoOutput(first_file)
-        encoder.output = output
-        
         # Start recording
         camera.start_recording(encoder=encoder, output=output)
+        recorder = ContinuousRecording(camera, encoder, subject_path, start_time)
         recorder.start()
 
         def signal_handler(signum, frame):
@@ -403,7 +422,6 @@ def main():
         signal.signal(signal.SIGTERM, signal_handler)
 
         print("\nRecording started. Press Ctrl+C to safely stop the recording...")
-
         while True:
             sleep(1)
 
@@ -414,4 +432,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
