@@ -64,22 +64,18 @@ def ensure_directory_exists(path):
 
 class SessionMetadata:
     def __init__(self, subject_path, start_time):
+        session_folder = os.path.basename(subject_path)  # Format: subject_YYYYMMDD_X
+        folder_parts = session_folder.split('_')
+        
         self.filepath = os.path.join(
             subject_path,
-            f"{os.path.basename(subject_path)}_{config['pi_identifier']}_metadata.yaml"
+            f"{session_folder}_{config['pi_identifier']}_metadata.yaml"
         )
-        
-        # Calculate frame duration from framerate
-        if 'framerate' in config['camera']:
-            frame_duration = int(1000000 / config['camera']['framerate'])  # Convert fps to microseconds
-        else:
-            frame_duration = 100000  # Default 10 fps
-            
         self.metadata = {
             'recording': {
-                'subject_name': config['subject_name'],
-                'recording_date': start_time.strftime('%Y%m%d'),
-                'session_id': os.path.basename(subject_path).split('_')[2],  # Get session_id from folder name
+                'subject_name': folder_parts[0],
+                'recording_date': folder_parts[1],
+                'session_id': int(folder_parts[2]),
                 'pi_identifier': config['pi_identifier'],
                 'start_time': start_time.isoformat(),
                 'end_time': None,
@@ -92,18 +88,16 @@ class SessionMetadata:
                     'height': config['camera']['resolution']['height']
                 },
                 'frame_format': config['camera']['frame_format'],
-                'framerate': config['camera'].get('framerate', 10),  # Default to 10 fps if not specified
-                'frame_duration': frame_duration
+                'frame_duration_limits': config['camera']['frame_duration_limits']
             }
         }
         self.save()
     
     def update_chunk(self, mp4_file, frame_count):
         """Update metadata with new chunk information"""
-        if mp4_file not in self.metadata['recording']['video_files']:
-            self.metadata['recording']['video_files'].append(mp4_file)
-            self.metadata['recording']['total_frames'] += frame_count
-            self.save()
+        self.metadata['recording']['video_files'].append(mp4_file)
+        self.metadata['recording']['total_frames'] += frame_count
+        self.save()
     
     def finalize(self, end_time):
         """Update end time when recording is finished"""
@@ -112,11 +106,8 @@ class SessionMetadata:
     
     def save(self):
         """Save metadata to YAML file"""
-        try:
-            with open(self.filepath, 'w') as f:
-                yaml.dump(self.metadata, f, default_flow_style=False)
-        except Exception as e:
-            logging.error(f"Error saving metadata: {e}")
+        with open(self.filepath, 'w') as f:
+            yaml.dump(self.metadata, f, default_flow_style=False)
 
 class VideoOutput(FileOutput):
     def __init__(self, filepath):
@@ -197,15 +188,14 @@ class VideoOutput(FileOutput):
             frame_duration = config['camera']['frame_duration_limits'][0]  # in microseconds
             framerate = int(1000000 / frame_duration)  # convert to fps
             
-            # Updated FFmpeg command with additional parameters for proper header handling
+            # FFmpeg command with explicit framerate
             convert_command = [
                 'ffmpeg', '-y',
                 '-f', 'h264',
                 '-r', str(framerate),
                 '-i', h264_file,
                 '-c:v', 'copy',
-                '-bsf:v', 'h264_mp4toannexb',  # Add this line to handle stream conversion
-                '-movflags', '+faststart+frag_keyframe+empty_moov+default_base_moof',
+                '-movflags', '+faststart',
                 mp4_file
             ]
             
@@ -377,22 +367,24 @@ def main():
         # Get start time for the session
         start_time = datetime.now()
         
-        # Configure encoder and recorder
-        encoder = H264Encoder()
-        recorder = ContinuousRecording(camera, encoder, subject_path, start_time)
-        first_file = recorder._generate_filename()
+        # Setup initial recording
+        first_file = os.path.join(
+            subject_path,
+            f"{config['subject_name']}_{start_time.strftime('%Y%m%d')}_{config['pi_identifier']}_chunk001.h264"
+        )
         
         output = VideoOutput(first_file)
+        encoder = H264Encoder()
         
-        # Configure encoder with proper headers
+        # Configure encoder for YUV420
         encoder.output = output
         encoder.repeat_sequence_header = True
         encoder.inline_headers = True
         encoder.bitrate = config['camera']['bitrate']
-        encoder.quality = Quality.VERY_HIGH
         
         # Start recording
         camera.start_recording(encoder=encoder, output=output)
+        recorder = ContinuousRecording(camera, encoder, subject_path, start_time)
         recorder.start()
 
         def signal_handler(signum, frame):
