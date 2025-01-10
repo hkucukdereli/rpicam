@@ -165,7 +165,7 @@ class VideoRecorder:
     def frame_callback(self, request):
         """Callback that runs for each frame"""
         try:
-            if self.is_recording and hasattr(self, 'current_chunk_frames'):
+            if self.is_recording and self.recording_start_time is not None:
                 current_time = time.time()
                 elapsed_time = current_time - self.recording_start_time.timestamp()
                 
@@ -220,14 +220,17 @@ class VideoRecorder:
         self.frame_counts[video_filename] = frame_count
 
     def start_recording(self):
+        # Initialize recording_start_time as None at the beginning
+        self.recording_start_time = None
+        
         # Warm up the camera before actual recording
-        print("Initializing up camera...")
+        print("Warming up camera...")
         dummy_encoder = H264Encoder(bitrate=self.config['camera']['bitrate'])
         dummy_output = FileOutput('/dev/null')
         self.picam2.start_recording(dummy_encoder, dummy_output)
         time.sleep(2)  # Wait for 2 seconds
         self.picam2.stop_recording()
-        print("Ready to record.")
+        print("Camera warmup complete")
         
         self.is_recording = True
         self.total_frames = 0
@@ -243,10 +246,12 @@ class VideoRecorder:
                 
                 # Start recording and set start time on first chunk
                 chunk_start = time.monotonic()
-                self.picam2.start_recording(encoder, output)
-                if not hasattr(self, 'recording_start_time'):
+                if self.recording_start_time is None:
                     self.recording_start_time = datetime.now()  # Set actual start time after warmup
+                
+                self.picam2.start_recording(encoder, output)
                 print(f"Started recording chunk: {video_filename}")
+                
                 
                 # Calculate exact chunk end time
                 chunk_end = chunk_start + self.config['recording']['chunk_length']
@@ -297,6 +302,11 @@ class VideoRecorder:
             print(f"Error during final cleanup: {e}")
             
     def write_metadata(self):
+        # Check if we have a valid start time
+        if self.recording_start_time is None:
+            print("Warning: No valid recording start time")
+            return
+            
         # Ensure all video files have frame counts
         for video_file in self.video_files:
             if video_file not in self.frame_counts:
@@ -327,25 +337,28 @@ class VideoRecorder:
             ]
         }
         
-        # Write metadata YAML
-        metadata_filename = self._generate_filename('metadata')
-        metadata_path = os.path.join(self.session_dir, metadata_filename)
-        
-        with open(metadata_path, 'w') as f:
-            yaml.dump(metadata, f, default_flow_style=False)
-            print(f"Wrote metadata to {metadata_path}")
-        
-        # Write timestamps CSV
-        timestamp_filename = self._generate_filename('timestamps')
-        timestamp_path = os.path.join(self.session_dir, timestamp_filename)
-        
-        with open(timestamp_path, 'w') as f:
-            # Write header
-            f.write("frame_number,elapsed_time_seconds,system_time\n")
-            # Write data
-            for ts in self.frame_timestamps:
-                f.write(f"{ts['frame']},{ts['elapsed']:.6f},{ts['system_time']:.6f}\n")
-            print(f"Wrote timestamps to {timestamp_path}")
+        # Write files only if we have valid data
+        if self.total_frames > 0:
+            # Write metadata YAML
+            metadata_filename = self._generate_filename('metadata')
+            metadata_path = os.path.join(self.session_dir, metadata_filename)
+            
+            with open(metadata_path, 'w') as f:
+                yaml.dump(metadata, f, default_flow_style=False)
+                print(f"Wrote metadata to {metadata_path}")
+            
+            # Write timestamps CSV
+            if self.frame_timestamps:
+                timestamp_filename = self._generate_filename('timestamps')
+                timestamp_path = os.path.join(self.session_dir, timestamp_filename)
+                
+                with open(timestamp_path, 'w') as f:
+                    # Write header
+                    f.write("frame_number,elapsed_time_seconds,system_time\n")
+                    # Write data
+                    for ts in self.frame_timestamps:
+                        f.write(f"{ts['frame']},{ts['elapsed']:.6f},{ts['system_time']:.6f}\n")
+                    print(f"Wrote timestamps to {timestamp_path}")
 
     def handle_shutdown(self, signum, frame):
         print("\nGracefully shutting down...")
