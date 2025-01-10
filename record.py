@@ -250,7 +250,7 @@ class VideoRecorder:
                     self.recording_start_time = datetime.now()  # Set actual start time after warmup
                 
                 self.picam2.start_recording(encoder, output)
-                print(f"Started recording chunk: {video_filename}")
+                if debug: print(f"Started recording chunk: {video_filename}")
                 
                 
                 # Calculate exact chunk end time
@@ -261,11 +261,12 @@ class VideoRecorder:
                     current_time = time.monotonic() - chunk_start
                     expected_frames = int(current_time * self.config['camera']['framerate'])
                     
-                    if int(current_time * 20) % 20 == 0:  # Print every second
-                        print(f"Time: {current_time:.3f}s, "
-                            f"Frames: {self.current_chunk_frames}, "
-                            f"Expected: {expected_frames}, "
-                            f"Diff: {self.current_chunk_frames - expected_frames}")
+                    if debug: 
+                        if int(current_time * 20) % 20 == 0:  # Print every second
+                            print(f"Time: {current_time:.3f}s, "
+                                f"Frames: {self.current_chunk_frames}, "
+                                f"Expected: {expected_frames}, "
+                                f"Diff: {self.current_chunk_frames - expected_frames}")
                     
                     # Use shorter sleep intervals for more precise timing
                     time.sleep(0.005)  # 5ms sleep instead of 100ms
@@ -345,7 +346,7 @@ class VideoRecorder:
             
             with open(metadata_path, 'w') as f:
                 yaml.dump(metadata, f, default_flow_style=False)
-                print(f"Wrote metadata to {metadata_path}")
+                if debug: print(f"Wrote metadata to {metadata_path}")
             
             # Write timestamps CSV
             if self.frame_timestamps:
@@ -358,10 +359,10 @@ class VideoRecorder:
                     # Write data
                     for ts in self.frame_timestamps:
                         f.write(f"{ts['frame']},{ts['elapsed']:.6f},{ts['system_time']:.6f}\n")
-                    print(f"Wrote timestamps to {timestamp_path}")
+                    if debug: print(f"Wrote timestamps to {timestamp_path}")
 
     def handle_shutdown(self, signum, frame):
-        print("\nGracefully shutting down...")
+        print("\nShutting down safely...")
         self.is_recording = False
         
         # Store the frame count for the last chunk
@@ -369,7 +370,7 @@ class VideoRecorder:
             last_video = self.video_files[-1]
             if last_video not in self.frame_counts:
                 self.frame_counts[last_video] = self.current_chunk_frames
-                print(f"Stored final frame count for {last_video}: {self.current_chunk_frames}")
+                if debug: print(f"Final frame count for {last_video}: {self.current_chunk_frames}")
         
         try:
             self.picam2.stop_recording()
