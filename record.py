@@ -165,10 +165,11 @@ class VideoRecorder:
     def frame_callback(self, request):
         """Callback that runs for each frame"""
         try:
-            if self.is_recording and self.current_chunk_filename:
+            if self.is_recording and hasattr(self, 'current_chunk_frames'):
                 current_time = time.time()
                 elapsed_time = current_time - self.recording_start_time.timestamp()
                 
+                # Record frame data
                 self.frame_timestamps.append({
                     'frame': self.total_frames,
                     'elapsed': elapsed_time,
@@ -231,40 +232,42 @@ class VideoRecorder:
                 
                 # Reset chunk frame counter
                 self.current_chunk_frames = 0
-                self.current_chunk_filename = video_filename
                 
                 # Start recording
                 self.picam2.start_recording(encoder, output)
                 print(f"Started recording chunk: {video_filename}")
                 
                 # Record for chunk duration
-                chunk_start = time.time()
-                while (time.time() - chunk_start < self.config['recording']['chunk_length'] 
+                chunk_start = time.monotonic()  # Use monotonic for better timing
+                while (time.monotonic() - chunk_start < self.config['recording']['chunk_length'] 
                     and self.is_recording):
-                    time.sleep(0.1)  # Sleep in smaller increments
-                    elapsed = int(time.time() - chunk_start)
-                    if elapsed % 10 == 0:
-                        print(f"Current chunk frames: {self.current_chunk_frames}")
+                    current_time = time.monotonic() - chunk_start
+                    if int(current_time) % 10 == 0:
+                        expected_frames = int(current_time * self.config['camera']['framerate'])
+                        print(f"Time: {current_time:.1f}s, Current chunk frames: {self.current_chunk_frames}, Expected: {expected_frames}")
+                    time.sleep(0.1)
                 
                 # Stop recording
                 self.picam2.stop_recording()
                 
                 # Store the frame count for this chunk
                 self.frame_counts[video_filename] = self.current_chunk_frames
-                print(f"Completed chunk {video_filename} with {self.current_chunk_frames} frames")
-                self.current_chunk_filename = None
+                print(f"Completed chunk {video_filename} with {self.current_chunk_frames} frames "
+                    f"(expected: {self.config['recording']['chunk_length'] * self.config['camera']['framerate']:.0f})")
                     
             except Exception as e:
+                import traceback
                 print(f"Error in recording loop: {str(e)}")
+                print(traceback.format_exc())
                 self.is_recording = False
                 break
 
         # Final cleanup
         try:
             self.picam2.stop_recording()
-        except:
-            pass
-
+        except Exception as e:
+            print(f"Error during final cleanup: {e}")
+            
     def write_metadata(self):
         metadata = {
             'subject_id': self.config['subject_name'],
