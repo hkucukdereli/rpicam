@@ -161,12 +161,21 @@ class VideoRecorder:
         chunk_start_time = time.time()
         
         while (time.time() - chunk_start_time < self.config['recording']['chunk_length'] 
-               and self.is_recording):
-            self.frame_timestamps.append(time.time())
+            and self.is_recording):
+            current_time = time.time()
+            elapsed_time = current_time - self.recording_start_time.timestamp()
+            
+            # Record frame data as: frame_number, elapsed_time, system_time
+            self.frame_timestamps.append({
+                'frame': self.total_frames,
+                'elapsed': elapsed_time,
+                'system_time': current_time
+            })
+            
             frame_count += 1
             self.total_frames += 1
             time.sleep(1/self.config['camera']['framerate'])
-            
+                
         self.frame_counts[video_filename] = frame_count
 
     def start_recording(self):
@@ -252,20 +261,23 @@ class VideoRecorder:
             }
         }
         
-        # Write metadata
+        # Write metadata to YAML file
         metadata_filename = self._generate_filename('metadata')
         metadata_path = os.path.join(self.session_dir, metadata_filename)
         
         with open(metadata_path, 'w') as f:
             yaml.dump(metadata, f, default_flow_style=False)
         
-        # Write timestamps
+        # Write timestamps with all three values
         timestamp_filename = self._generate_filename('timestamps')
         timestamp_path = os.path.join(self.session_dir, timestamp_filename)
         
         with open(timestamp_path, 'w') as f:
+            # Write header
+            f.write("frame_number,elapsed_time_seconds,system_time\n")
+            # Write data
             for ts in self.frame_timestamps:
-                f.write(f"{ts}\n")
+                f.write(f"{ts['frame']},{ts['elapsed']:.6f},{ts['system_time']:.6f}\n")
 
     def handle_shutdown(self, signum, frame):
         print("\nGracefully shutting down...")
@@ -282,8 +294,6 @@ class VideoRecorder:
         # Clean up
         self.picam2.close()
         sys.exit(0)
-
-        
 
 def main():
     recorder = VideoRecorder()
