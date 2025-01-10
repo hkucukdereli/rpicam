@@ -227,13 +227,19 @@ class VideoRecorder:
             'start_time': self.recording_start_time.isoformat(),
             'end_time': datetime.now().isoformat(),
             'framerate': self.config['camera']['framerate'],
-            'video_files': self.video_files,
-            'frame_counts': self.frame_counts,
             'total_frames': self.total_frames,
             'resolution': {
                 'width': self.config['camera']['resolution']['width'],
                 'height': self.config['camera']['resolution']['height']
-            }
+            },
+            'chunks': [
+                {
+                    'filename': video_file,
+                    'frame_count': self.frame_counts[video_file],
+                    'chunk_id': idx + 1
+                }
+                for idx, video_file in enumerate(self.video_files)
+            ]
         }
         
         # Write metadata to YAML file
