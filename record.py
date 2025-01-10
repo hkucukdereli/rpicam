@@ -36,7 +36,11 @@ class VideoRecorder:
         self.frame_counts = {}
         self.frame_timestamps = []
         self.total_frames = 0
-        
+
+        # Frame counting variables
+        self.current_chunk_frames = 0
+        self.current_chunk_filename = None
+            
         # Create queue for encoders
         self.encoder_queue = Queue(maxsize=2)
         
@@ -159,16 +163,19 @@ class VideoRecorder:
         self.picam2.pre_callback = self.frame_callback
 
     def frame_callback(self, request):
-        """Callback that runs before each frame"""
-        current_time = time.time()
-        elapsed_time = current_time - self.recording_start_time.timestamp()
-        
-        self.frame_timestamps.append({
-            'frame': self.total_frames,
-            'elapsed': elapsed_time,
-            'system_time': current_time
-        })
-        self.total_frames += 1
+        """Callback that runs for each frame"""
+        if self.is_recording and self.current_chunk_filename:
+            current_time = time.time()
+            elapsed_time = current_time - self.recording_start_time.timestamp()
+            
+            self.frame_timestamps.append({
+                'frame': self.total_frames,
+                'elapsed': elapsed_time,
+                'system_time': current_time
+            })
+            
+            self.current_chunk_frames += 1
+            self.total_frames += 1
 
     def create_encoder_output(self):
         """Create new encoder and output for recording"""
@@ -206,23 +213,28 @@ class VideoRecorder:
     def start_recording(self):
         self.is_recording = True
         self.recording_start_time = datetime.now()
+        self.total_frames = 0
         
         while self.is_recording:
             try:
                 encoder, output, video_filename = self.create_encoder_output()
                 self.video_files.append(video_filename)
                 
-                chunk_start = time.monotonic()
-                self.frame_counts[video_filename] = 0
+                # Reset chunk frame counter
+                self.current_chunk_frames = 0
+                self.current_chunk_filename = video_filename
                 
                 self.picam2.start_recording(encoder, output)
                 
-                while (time.monotonic() - chunk_start < self.config['recording']['chunk_length'] 
-                    and self.is_recording):
-                    time.sleep(0.1)  # Short sleep to prevent CPU hogging
-                    
+                # Record for chunk duration
+                time.sleep(self.config['recording']['chunk_length'])
+                
                 self.picam2.stop_recording()
                 
+                # Store the frame count for this chunk
+                self.frame_counts[video_filename] = self.current_chunk_frames
+                self.current_chunk_filename = None
+                    
             except Exception as e:
                 print(f"Error during recording chunk: {e}")
                 self.is_recording = False
