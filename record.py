@@ -128,6 +128,7 @@ class VideoRecorder:
                     self.config['camera']['resolution']['height']
                 )
             },
+            'sensor': {}, 
             'display': 'main',
             'encode': 'main'
         }
