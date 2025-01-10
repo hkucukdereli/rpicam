@@ -137,7 +137,7 @@ class VideoRecorder:
         
         self.picam2.set_controls({
             "AfMode": libcamera.controls.AfModeEnum.Manual,
-            "LensPosition": config['camera']['lens']['position'],
+            "LensPosition": self.config['camera']['lens']['position'],
             "Brightness": self.config['camera']['brightness'],
             "Contrast": self.config['camera']['contrast'],
             "Saturation": self.config['camera']['saturation'],
