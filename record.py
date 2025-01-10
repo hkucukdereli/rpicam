@@ -269,6 +269,12 @@ class VideoRecorder:
             print(f"Error during final cleanup: {e}")
             
     def write_metadata(self):
+        # Ensure all video files have frame counts
+        for video_file in self.video_files:
+            if video_file not in self.frame_counts:
+                print(f"Warning: No frame count for {video_file}, setting to 0")
+                self.frame_counts[video_file] = 0
+
         metadata = {
             'subject_id': self.config['subject_name'],
             'pi_identifier': self.config['pi_identifier'],
@@ -291,33 +297,21 @@ class VideoRecorder:
                 for idx, video_file in enumerate(self.video_files)
             ]
         }
-        
-        # Write metadata to YAML file
-        metadata_filename = self._generate_filename('metadata')
-        metadata_path = os.path.join(self.session_dir, metadata_filename)
-        
-        with open(metadata_path, 'w') as f:
-            yaml.dump(metadata, f, default_flow_style=False)
-        
-        # Write timestamps with all three values
-        timestamp_filename = self._generate_filename('timestamps')
-        timestamp_path = os.path.join(self.session_dir, timestamp_filename)
-        
-        with open(timestamp_path, 'w') as f:
-            # Write header
-            f.write("frame_number,elapsed_time_seconds,system_time\n")
-            # Write data
-            for ts in self.frame_timestamps:
-                f.write(f"{ts['frame']},{ts['elapsed']:.6f},{ts['system_time']:.6f}\n")
 
     def handle_shutdown(self, signum, frame):
         print("\nGracefully shutting down...")
         self.is_recording = False
         
+        # If we were recording, store the frame count for the last chunk
+        if hasattr(self, 'current_chunk_frames') and self.video_files:
+            last_video = self.video_files[-1]
+            if last_video not in self.frame_counts:
+                self.frame_counts[last_video] = self.current_chunk_frames
+        
         try:
             self.picam2.stop_recording()
         except:
-            pass  # Ignore any errors during stop_recording
+            pass
         
         # Write metadata
         self.write_metadata()
