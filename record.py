@@ -234,26 +234,44 @@ class VideoRecorder:
                 self.current_chunk_frames = 0
                 
                 # Start recording
+                chunk_start = time.monotonic()  # Get start time BEFORE starting recording
                 self.picam2.start_recording(encoder, output)
                 print(f"Started recording chunk: {video_filename}")
                 
-                # Record for chunk duration
-                chunk_start = time.monotonic()  # Use monotonic for better timing
-                while (time.monotonic() - chunk_start < self.config['recording']['chunk_length'] 
-                    and self.is_recording):
-                    current_time = time.monotonic() - chunk_start
-                    if int(current_time) % 10 == 0:
-                        expected_frames = int(current_time * self.config['camera']['framerate'])
-                        print(f"Time: {current_time:.1f}s, Current chunk frames: {self.current_chunk_frames}, Expected: {expected_frames}")
-                    time.sleep(0.1)
+                # Calculate exact chunk end time
+                chunk_end = chunk_start + self.config['recording']['chunk_length']
                 
-                # Stop recording
+                # Record for chunk duration with precise timing
+                while time.monotonic() < chunk_end and self.is_recording:
+                    current_time = time.monotonic() - chunk_start
+                    expected_frames = int(current_time * self.config['camera']['framerate'])
+                    
+                    if expected_frames % 20 == 0:  # Print every 20 frames
+                        print(f"Time: {current_time:.3f}s, "
+                            f"Frames: {self.current_chunk_frames}, "
+                            f"Expected: {expected_frames}, "
+                            f"Diff: {self.current_chunk_frames - expected_frames}")
+                    
+                    # Use shorter sleep intervals for more precise timing
+                    time.sleep(0.005)  # 5ms sleep instead of 100ms
+                
+                # Stop recording immediately when we hit the time limit
                 self.picam2.stop_recording()
                 
-                # Store the frame count for this chunk
+                # Store the frame count and print summary
                 self.frame_counts[video_filename] = self.current_chunk_frames
-                print(f"Completed chunk {video_filename} with {self.current_chunk_frames} frames "
-                    f"(expected: {self.config['recording']['chunk_length'] * self.config['camera']['framerate']:.0f})")
+                
+                # Calculate actual duration and frame rate
+                actual_duration = time.monotonic() - chunk_start
+                actual_fps = self.current_chunk_frames / actual_duration
+                expected_frames = int(self.config['recording']['chunk_length'] * self.config['camera']['framerate'])
+                
+                print(f"Completed chunk {video_filename}:")
+                print(f"  Duration: {actual_duration:.3f}s")
+                print(f"  Frames: {self.current_chunk_frames}")
+                print(f"  Expected: {expected_frames}")
+                print(f"  Actual FPS: {actual_fps:.2f}")
+                print(f"  Target FPS: {self.config['camera']['framerate']}")
                     
             except Exception as e:
                 import traceback
