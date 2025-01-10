@@ -178,15 +178,17 @@ class VideoRecorder:
                 
         self.frame_counts[video_filename] = frame_count
 
-    def start_recording(self):
-        self.is_recording = True
-        self.recording_start_time = datetime.now()
-        
-        # Start initial recording
-        encoder, output, video_filename = self.create_encoder_output()
-        self.video_files.append(video_filename)
-        
+def start_recording(self):
+    self.is_recording = True
+    self.recording_start_time = datetime.now()
+    
+    while self.is_recording:
         try:
+            # Create encoder/output for this chunk
+            encoder, output, video_filename = self.create_encoder_output()
+            self.video_files.append(video_filename)
+            
+            # Start recording
             self.picam2.start_recording(encoder, output)
             
             # Start frame counting thread
@@ -196,52 +198,29 @@ class VideoRecorder:
             )
             frame_counter.start()
             
-            while self.is_recording:
-                try:
-                    # Create next encoder/output while current chunk is recording
-                    next_encoder, next_output, next_filename = self.create_encoder_output()
-                    self.video_files.append(next_filename)
-                    
-                    # Wait until near the end of current chunk
-                    time.sleep(self.config['recording']['chunk_length'] - 0.5)
-                    
-                    # Only proceed with switch if we're still recording
-                    if self.is_recording:
-                        # Switch to next encoder/output
-                        self.picam2.switch_recording_output(next_encoder, next_output)
-                        
-                        # Wait for frame counter to finish and start new one
-                        frame_counter.join()
-                        frame_counter = threading.Thread(
-                            target=self.record_frames, 
-                            args=(next_filename,)
-                        )
-                        frame_counter.start()
-                        
-                        # Clean up previous encoder/output
-                        encoder.close()
-                        output.close()
-                        
-                        # Update for next iteration
-                        encoder, output = next_encoder, next_output
-                    else:
-                        break
-                        
-                except Exception as e:
-                    print(f"Error during recording chunk: {e}")
-                    self.is_recording = False
-                    break
-                    
-        except Exception as e:
-            print(f"Error starting recording: {e}")
-            self.is_recording = False
+            # Record for chunk duration
+            time.sleep(self.config['recording']['chunk_length'])
             
-        finally:
-            # Make sure we stop recording if we exit the loop
-            try:
-                self.picam2.stop_recording()
-            except:
-                pass
+            # Stop recording
+            self.picam2.stop_recording()
+            
+            # Wait for frame counter to finish
+            frame_counter.join()
+            
+            # Clean up encoder/output
+            encoder.close()
+            output.close()
+                
+        except Exception as e:
+            print(f"Error during recording chunk: {e}")
+            self.is_recording = False
+            break
+                
+    # Make sure we stop recording if we exit the loop
+    try:
+        self.picam2.stop_recording()
+    except:
+        pass
 
     def write_metadata(self):
         metadata = {
