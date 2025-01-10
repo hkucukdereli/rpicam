@@ -1,6 +1,7 @@
 from picamera2 import Picamera2
 from picamera2.encoders import H264Encoder
 from picamera2.outputs import FileOutput
+import libcamera 
 import time
 import yaml
 import signal
@@ -97,28 +98,42 @@ class VideoRecorder:
         return None
 
     def configure_camera(self):
+        # Calculate frame duration in microseconds from framerate
+        frame_duration = int(1_000_000 / self.config['camera']['framerate'])
+
         # Create camera configuration
         cam_config = {
-            "size": (
-                self.config['camera']['resolution']['width'],
-                self.config['camera']['resolution']['height']
-            ),
-            "format": self.config['camera']['frame_format'],
-            "framerate": self.config['camera']['framerate'],
-            "colour_space": "sYCC"  # Added this required parameter
+            'use_case': 'video',
+            'transform': libcamera.Transform(0),
+            'colour_space': libcamera.ColorSpace.Rec709(),
+            'buffer_count': 6,
+            'queue': True,
+            'main': {
+                'format': self.config['camera']['frame_format'],
+                'size': (
+                    self.config['camera']['resolution']['width'],
+                    self.config['camera']['resolution']['height']
+                ),
+                'preserve_ar': True
+            },
+            'controls': {
+                'NoiseReductionMode': self.config['camera']['noise_reduction'],
+                'FrameDurationLimits': (frame_duration, frame_duration)
+            }
         }
         
         # Configure the camera
         self.picam2.configure(cam_config)
         
-        # Apply camera settings
+        # Apply camera settings using the ranges we discovered
         self.picam2.set_controls({
-            "Brightness": self.config['camera']['brightness'],
-            "Contrast": self.config['camera']['contrast'],
-            "Saturation": self.config['camera']['saturation'],
-            "Sharpness": self.config['camera']['sharpness'],
-            "AnalogueGain": self.config['camera']['analog_gain'],
-            "ExposureValue": self.config['camera']['exposure_value']
+            "Brightness": max(min(self.config['camera']['brightness'], 1.0), -1.0),
+            "Contrast": max(min(self.config['camera']['contrast'], 32.0), 1.0),
+            "Saturation": max(min(self.config['camera']['saturation'], 32.0), 1.0),
+            "Sharpness": max(min(self.config['camera']['sharpness'], 16.0), 1.0),
+            "AnalogueGain": max(min(self.config['camera']['analog_gain'], 16.0), 1.0),
+            "ExposureValue": max(min(self.config['camera']['exposure_value'], 8.0), -8.0),
+            "NoiseReductionMode": min(self.config['camera']['noise_reduction'], 4),
         })
 
     def create_encoder_output(self):

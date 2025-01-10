@@ -31,7 +31,7 @@ camera:
   # Additional controls
   analog_gain: 1.0      # Range: 1.0 to 16.0
   exposure_value: 0.0   # Range: -8.0 to 8.0
-  noise_reduction: 3    # Range: 0 to 4 (2 = medium quality)
+  noise_reduction: 2    # Range: 0 to 4 (2 = medium quality)
   
   # Encoding
   bitrate: 1000000
