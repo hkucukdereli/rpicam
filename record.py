@@ -217,28 +217,63 @@ class VideoRecorder:
         
         while self.is_recording:
             try:
-                encoder, output, video_filename = self.create_encoder_output()
-                self.video_files.append(video_filename)
+                # Create new encoder and output
+                try:
+                    encoder, output, video_filename = self.create_encoder_output()
+                    self.video_files.append(video_filename)
+                except Exception as e:
+                    print(f"Error creating encoder/output: {e}")
+                    raise
                 
                 # Reset chunk frame counter
                 self.current_chunk_frames = 0
                 self.current_chunk_filename = video_filename
                 
-                self.picam2.start_recording(encoder, output)
+                # Start recording with error checking
+                try:
+                    self.picam2.start_recording(encoder, output)
+                except Exception as e:
+                    print(f"Error starting recording: {e}")
+                    raise
+                
+                print(f"Started recording chunk: {video_filename}")
                 
                 # Record for chunk duration
-                time.sleep(self.config['recording']['chunk_length'])
+                try:
+                    chunk_start = time.time()
+                    while (time.time() - chunk_start < self.config['recording']['chunk_length'] 
+                        and self.is_recording):
+                        time.sleep(0.1)  # Sleep in smaller increments
+                        # Print progress every 10 seconds
+                        if int(time.time() - chunk_start) % 10 == 0:
+                            print(f"Current chunk frames: {self.current_chunk_frames}")
+                except Exception as e:
+                    print(f"Error during recording loop: {e}")
+                    raise
                 
-                self.picam2.stop_recording()
+                # Stop recording with error checking
+                try:
+                    self.picam2.stop_recording()
+                except Exception as e:
+                    print(f"Error stopping recording: {e}")
+                    raise
                 
                 # Store the frame count for this chunk
                 self.frame_counts[video_filename] = self.current_chunk_frames
+                print(f"Completed chunk {video_filename} with {self.current_chunk_frames} frames")
                 self.current_chunk_filename = None
                     
             except Exception as e:
-                print(f"Error during recording chunk: {e}")
+                print(f"Fatal error in recording loop: {e}")
                 self.is_recording = False
                 break
+
+        # Final cleanup
+        try:
+            if self.picam2.is_recording:
+                self.picam2.stop_recording()
+        except:
+            pass
 
     def write_metadata(self):
         metadata = {
