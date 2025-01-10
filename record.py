@@ -116,16 +116,24 @@ class VideoRecorder:
                 ),
                 'preserve_ar': True
             },
+            'lores': None,  # Added this required key
             'controls': {
                 'NoiseReductionMode': self.config['camera']['noise_reduction'],
                 'FrameDurationLimits': (frame_duration, frame_duration)
-            }
+            },
+            'raw': {  # Adding raw configuration as seen in default config
+                'format': 'SRGGB10_CSI2P',
+                'size': (
+                    self.config['camera']['resolution']['width'],
+                    self.config['camera']['resolution']['height']
+                )
+            },
+            'display': 'main',
+            'encode': 'main'
         }
         
-        # Configure the camera
         self.picam2.configure(cam_config)
         
-        # Apply camera settings using the ranges we discovered
         self.picam2.set_controls({
             "Brightness": max(min(self.config['camera']['brightness'], 1.0), -1.0),
             "Contrast": max(min(self.config['camera']['contrast'], 32.0), 1.0),
