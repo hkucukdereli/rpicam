@@ -182,14 +182,19 @@ class VideoRecorder:
 
     def create_encoder_output(self):
         """Create new encoder and output for recording"""
-        self.chunk_counter += 1
-        video_filename = self._generate_filename('video')
-        video_path = os.path.join(self.session_dir, video_filename)
-        
-        encoder = H264Encoder(bitrate=self.config['camera']['bitrate'])
-        output = FileOutput(video_path)
-        
-        return encoder, output, video_filename
+        try:
+            self.chunk_counter += 1
+            video_filename = self._generate_filename('video')
+            video_path = os.path.join(self.session_dir, video_filename)
+            
+            print(f"Creating encoder for: {video_path}")
+            encoder = H264Encoder(bitrate=self.config['camera']['bitrate'])
+            output = FileOutput(video_path)
+            
+            return encoder, output, video_filename
+        except Exception as e:
+            print(f"Error in create_encoder_output: {e}")
+            raise
 
     def record_frames(self, video_filename):
         frame_count = 0
