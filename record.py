@@ -201,15 +201,11 @@ class VideoRecorder:
                 # Record for chunk duration
                 time.sleep(self.config['recording']['chunk_length'])
                 
-                # Stop recording
+                # Stop recording - this will handle cleanup of encoder and output
                 self.picam2.stop_recording()
                 
                 # Wait for frame counter to finish
                 frame_counter.join()
-                
-                # Clean up encoder/output
-                encoder.close()
-                output.close()
                     
             except Exception as e:
                 print(f"Error during recording chunk: {e}")
