@@ -192,7 +192,7 @@ class VideoRecorder:
             video_filename = self._generate_filename('video')
             video_path = os.path.join(self.session_dir, video_filename)
             
-            print(f"Creating encoder for: {video_path}")
+            if self.debug: print(f"Creating encoder for: {video_path}")
             encoder = H264Encoder(bitrate=self.config['camera']['bitrate'])
             output = FileOutput(video_path)
             
@@ -287,11 +287,9 @@ class VideoRecorder:
                 expected_frames = int(self.config['recording']['chunk_length'] * self.config['camera']['framerate'])
                 
                 print(f"Completed chunk {video_filename}:")
-                print(f"  Duration: {actual_duration:.3f}s")
-                print(f"  Frames: {self.current_chunk_frames}")
-                print(f"  Expected: {expected_frames}")
-                print(f"  Actual FPS: {actual_fps:.2f}")
-                print(f"  Target FPS: {self.config['camera']['framerate']}")
+                print(f"  Duration: {actual_duration:.3f} sec at {actual_fps:.2f} fps")
+                print(f"  Frames: {self.current_chunk_frames} / {expected_frames}")
+                if self.debug: print(f"  Actual / target frame rate: {actual_fps:.2f} / {self.config['camera']['framerate']}")
                     
             except Exception as e:
                 import traceback
