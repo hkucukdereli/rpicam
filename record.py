@@ -230,21 +230,22 @@ class VideoRecorder:
         print("Ready to record.")
         
         self.is_recording = True
-        self.recording_start_time = datetime.now()
         self.total_frames = 0
         
         while self.is_recording:
             try:
-                # Create encoder/output for this chunk
+                # Create encoder/output for first chunk
                 encoder, output, video_filename = self.create_encoder_output()
                 self.video_files.append(video_filename)
                 
                 # Reset chunk frame counter
                 self.current_chunk_frames = 0
                 
-                # Start recording
-                chunk_start = time.monotonic()  # Get start time BEFORE starting recording
+                # Start recording and set start time on first chunk
+                chunk_start = time.monotonic()
                 self.picam2.start_recording(encoder, output)
+                if not hasattr(self, 'recording_start_time'):
+                    self.recording_start_time = datetime.now()  # Set actual start time after warmup
                 print(f"Started recording chunk: {video_filename}")
                 
                 # Calculate exact chunk end time
@@ -299,9 +300,10 @@ class VideoRecorder:
         # Ensure all video files have frame counts
         for video_file in self.video_files:
             if video_file not in self.frame_counts:
-                print(f"Warning: No frame count for {video_file}, setting to 0")
-                self.frame_counts[video_file] = 0
+                print(f"Warning: No frame count for {video_file}, setting to current count")
+                self.frame_counts[video_file] = self.current_chunk_frames
 
+        # Create metadata
         metadata = {
             'subject_id': self.config['subject_name'],
             'pi_identifier': self.config['pi_identifier'],
@@ -324,24 +326,48 @@ class VideoRecorder:
                 for idx, video_file in enumerate(self.video_files)
             ]
         }
+        
+        # Write metadata YAML
+        metadata_filename = self._generate_filename('metadata')
+        metadata_path = os.path.join(self.session_dir, metadata_filename)
+        
+        with open(metadata_path, 'w') as f:
+            yaml.dump(metadata, f, default_flow_style=False)
+            print(f"Wrote metadata to {metadata_path}")
+        
+        # Write timestamps CSV
+        timestamp_filename = self._generate_filename('timestamps')
+        timestamp_path = os.path.join(self.session_dir, timestamp_filename)
+        
+        with open(timestamp_path, 'w') as f:
+            # Write header
+            f.write("frame_number,elapsed_time_seconds,system_time\n")
+            # Write data
+            for ts in self.frame_timestamps:
+                f.write(f"{ts['frame']},{ts['elapsed']:.6f},{ts['system_time']:.6f}\n")
+            print(f"Wrote timestamps to {timestamp_path}")
 
     def handle_shutdown(self, signum, frame):
-        print("\nShutting down safely...")
+        print("\nGracefully shutting down...")
         self.is_recording = False
         
-        # If we were recording, store the frame count for the last chunk
+        # Store the frame count for the last chunk
         if hasattr(self, 'current_chunk_frames') and self.video_files:
             last_video = self.video_files[-1]
             if last_video not in self.frame_counts:
                 self.frame_counts[last_video] = self.current_chunk_frames
+                print(f"Stored final frame count for {last_video}: {self.current_chunk_frames}")
         
         try:
             self.picam2.stop_recording()
         except:
             pass
-        
-        # Write metadata
-        self.write_metadata()
+
+        try:
+            self.write_metadata()
+            print("Successfully wrote metadata files")
+        except Exception as e:
+            print(f"Error writing metadata: {e}")
         
         # Clean up
         self.picam2.close()
