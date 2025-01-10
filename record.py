@@ -136,13 +136,23 @@ class VideoRecorder:
         self.picam2.configure(cam_config)
         
         self.picam2.set_controls({
-            "Brightness": max(min(self.config['camera']['brightness'], 1.0), -1.0),
-            "Contrast": max(min(self.config['camera']['contrast'], 32.0), 1.0),
-            "Saturation": max(min(self.config['camera']['saturation'], 32.0), 1.0),
-            "Sharpness": max(min(self.config['camera']['sharpness'], 16.0), 1.0),
-            "AnalogueGain": max(min(self.config['camera']['analog_gain'], 16.0), 1.0),
-            "ExposureValue": max(min(self.config['camera']['exposure_value'], 8.0), -8.0),
-            "NoiseReductionMode": min(self.config['camera']['noise_reduction'], 4),
+            "AfMode": controls.AfModeEnum.Manual,
+            "LensPosition": config['camera']['lens']['position'],
+            "Brightness": self.config['camera']['brightness'],
+            "Contrast": self.config['camera']['contrast'],
+            "Saturation": self.config['camera']['saturation'],
+            "Sharpness": self.config['camera']['sharpness'],
+            "AnalogueGain": self.config['camera']['analog_gain'],
+            "ExposureValue": self.config['camera']['exposure_value'],
+            "NoiseReductionMode": self.config['camera']['noise_reduction'],
+            "AwbEnable": False
+            # "Brightness": max(min(self.config['camera']['brightness'], 1.0), -1.0),
+            # "Contrast": max(min(self.config['camera']['contrast'], 32.0), 1.0),
+            # "Saturation": max(min(self.config['camera']['saturation'], 32.0), 1.0),
+            # "Sharpness": max(min(self.config['camera']['sharpness'], 16.0), 1.0),
+            # "AnalogueGain": max(min(self.config['camera']['analog_gain'], 16.0), 1.0),
+            # "ExposureValue": max(min(self.config['camera']['exposure_value'], 8.0), -8.0),
+            # "NoiseReductionMode": min(self.config['camera']['noise_reduction'], 4),
         })
 
     def create_encoder_output(self):
