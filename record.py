@@ -11,14 +11,14 @@ import threading
 from queue import Queue
 
 class VideoRecorder:
-    def __init__(self, config_path='camera_config.yaml', session_id=1):
+    def __init__(self, config_path='camera_config.yaml'):
         # Load configuration
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
         
         # Set up session information
-        self.session_id = session_id
         self.date_str = datetime.now().strftime("%Y%m%d")
+        self.session_id = self._determine_session_id()
         self.chunk_counter = 0
         
         # Create session directory
@@ -42,6 +42,36 @@ class VideoRecorder:
         # Set up signal handling
         signal.signal(signal.SIGINT, self.handle_shutdown)
     
+    def _determine_session_id(self):
+        """
+        Determine session ID by checking existing directories for the current date
+        Returns 1 if no existing sessions found, otherwise returns max + 1
+        """
+        base_path = self.config['paths']['video_save_path']
+        subject_id = self.config['subject_name']
+        
+        # Pattern to match: subject_id_YYYYMMDD_XX
+        prefix = f"{subject_id}_{self.date_str}_"
+        
+        max_session = 0
+        
+        # Check all directories in the base path
+        if os.path.exists(base_path):
+            for dirname in os.listdir(base_path):
+                # Check if directory matches our naming pattern
+                if dirname.startswith(prefix):
+                    try:
+                        # Extract session number from the end
+                        session_str = dirname.split('_')[-1]
+                        session_num = int(session_str)
+                        max_session = max(max_session, session_num)
+                    except (ValueError, IndexError):
+                        # Skip directories that don't match the expected format
+                        continue
+        
+        # Return next session number (1 if no existing sessions found)
+        return max_session + 1
+    
     def _create_session_directory(self):
         """Create and return the session directory path"""
         session_name = f"{self.config['subject_name']}_{self.date_str}_{self.session_id:02d}"
@@ -49,6 +79,7 @@ class VideoRecorder:
         
         if not os.path.exists(session_dir):
             os.makedirs(session_dir)
+            print(f"Created new session directory: {session_dir}")
         
         return session_dir
     
@@ -198,15 +229,14 @@ class VideoRecorder:
         sys.exit(0)
 
 def main():
-    # Get session ID from command line argument or default to 1
-    session_id = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-    
-    recorder = VideoRecorder(session_id=session_id)
+    recorder = VideoRecorder()
     try:
+        print(f"Starting recording session {recorder.session_id:02d}")
         recorder.start_recording()
     except Exception as e:
         print(f"Error during recording: {e}")
         recorder.handle_shutdown(None, None)
+
 
 if __name__ == "__main__":
     main()
