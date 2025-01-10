@@ -10,9 +10,10 @@ import os
 from datetime import datetime
 import threading
 from queue import Queue
+import argparse
 
 class VideoRecorder:
-    def __init__(self, config_path='camera_config.yaml'):
+    def __init__(self, config_path='camera_config.yaml', debug=False):
         # Load configuration
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
@@ -387,8 +388,8 @@ class VideoRecorder:
         self.picam2.close()
         sys.exit(0)
 
-def main():
-    recorder = VideoRecorder()
+def main(debug=False):
+    recorder = VideoRecorder(debug=debug)
     try:
         print(f"Starting recording session {recorder.session_id:02d}")
         recorder.start_recording()
@@ -401,4 +402,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Video Recorder")
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    args = parser.parse_args()
+
+    main(debug=args.debug)
