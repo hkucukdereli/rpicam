@@ -220,13 +220,22 @@ class VideoRecorder:
         self.frame_counts[video_filename] = frame_count
 
     def start_recording(self):
+        # Warm up the camera before actual recording
+        print("Initializing up camera...")
+        dummy_encoder = H264Encoder(bitrate=self.config['camera']['bitrate'])
+        dummy_output = FileOutput('/dev/null')
+        self.picam2.start_recording(dummy_encoder, dummy_output)
+        time.sleep(2)  # Wait for 2 seconds
+        self.picam2.stop_recording()
+        print("Ready to record.")
+        
         self.is_recording = True
         self.recording_start_time = datetime.now()
         self.total_frames = 0
         
         while self.is_recording:
             try:
-                # Create new encoder and output
+                # Create encoder/output for this chunk
                 encoder, output, video_filename = self.create_encoder_output()
                 self.video_files.append(video_filename)
                 
@@ -246,7 +255,7 @@ class VideoRecorder:
                     current_time = time.monotonic() - chunk_start
                     expected_frames = int(current_time * self.config['camera']['framerate'])
                     
-                    if expected_frames % 20 == 0:  # Print every 20 frames
+                    if int(current_time * 20) % 20 == 0:  # Print every second
                         print(f"Time: {current_time:.3f}s, "
                             f"Frames: {self.current_chunk_frames}, "
                             f"Expected: {expected_frames}, "
@@ -255,7 +264,7 @@ class VideoRecorder:
                     # Use shorter sleep intervals for more precise timing
                     time.sleep(0.005)  # 5ms sleep instead of 100ms
                 
-                # Stop recording immediately when we hit the time limit
+                # Stop recording
                 self.picam2.stop_recording()
                 
                 # Store the frame count and print summary
@@ -317,7 +326,7 @@ class VideoRecorder:
         }
 
     def handle_shutdown(self, signum, frame):
-        print("\nGracefully shutting down...")
+        print("\nShutting down safely...")
         self.is_recording = False
         
         # If we were recording, store the frame count for the last chunk
