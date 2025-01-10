@@ -97,18 +97,21 @@ class VideoRecorder:
         return None
 
     def configure_camera(self):
-        # Camera configuration code remains the same
+        # Create camera configuration
         cam_config = {
             "size": (
                 self.config['camera']['resolution']['width'],
                 self.config['camera']['resolution']['height']
             ),
             "format": self.config['camera']['frame_format'],
-            "framerate": self.config['camera']['framerate']
+            "framerate": self.config['camera']['framerate'],
+            "colour_space": "sYCC"  # Added this required parameter
         }
         
+        # Configure the camera
         self.picam2.configure(cam_config)
         
+        # Apply camera settings
         self.picam2.set_controls({
             "Brightness": self.config['camera']['brightness'],
             "Contrast": self.config['camera']['contrast'],
